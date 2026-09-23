@@ -14,12 +14,47 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+"""
+URL configuration for config project.
+
+The `urlpatterns` list routes URLs to views.
+"""
+
 from django.contrib import admin
+from django.http import JsonResponse
 from django.urls import include, path
 
+
+def health_check(request):
+    return JsonResponse(
+        {
+            "status": "ok",
+            "service": "smart-urban-parking-backend",
+            "api": {
+                "auth": "/api/auth/",
+                "vehicles": "/api/vehicles/",
+                "parking_zones": "/api/parking-zones/",
+                "parking_slots": "/api/parking-slots/",
+                "pricing_rules": "/api/pricing-rules/",
+                "parking_sessions": "/api/parking-sessions/",
+            },
+        }
+    )
+
+
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    path('api/auth/', include('accounts.urls')),
-    path('api/', include('vehicles.urls')),
-    path('api/', include('parking.urls')),
+    # Health check
+    path("", health_check, name="health-check"),
+
+    # Django admin
+    path("admin/", admin.site.urls),
+
+    # Authentication
+    path("api/auth/", include("accounts.urls")),
+
+    # Vehicles
+    path("api/", include("vehicles.urls")),
+
+    # Parking
+    path("api/", include("parking.urls")),
 ]

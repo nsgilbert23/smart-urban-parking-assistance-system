@@ -1,0 +1,37 @@
+warning: in the working copy of 'backend/.env.example', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/accounts/tests.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/accounts/views.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/config/settings.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/config/urls.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/parking/models.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/parking/serializers.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/parking/views.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/components/common/Features.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/components/common/Hero.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/components/layout/Footer.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/components/layout/Navbar.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/context/AuthContext.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/hooks/useAuth.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/pages/NotFound/NotFound.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/routes/AppRoutes.jsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'frontend/src/services/api.js', LF will be replaced by CRLF the next time Git touches it
+ backend/.env.example                        |  18 [32m+[m[31m-[m
+ backend/accounts/tests.py                   |   8 [32m+[m
+ backend/accounts/views.py                   |   2 [32m+[m
+ backend/config/settings.py                  |   2 [32m+[m[31m-[m
+ backend/config/urls.py                      |  45 [32m++++[m[31m-[m
+ backend/parking/models.py                   |  94 [32m++++++++[m[31m--[m
+ backend/parking/serializers.py              |  70 [32m++++++[m[31m--[m
+ backend/parking/views.py                    | 115 [32m+++++++++++[m[31m-[m
+ frontend/src/components/common/Features.jsx |  14 [32m+[m[31m-[m
+ frontend/src/components/common/Hero.jsx     |  54 [32m+++[m[31m---[m
+ frontend/src/components/layout/Footer.jsx   |  13 [32m+[m[31m-[m
+ frontend/src/components/layout/Navbar.jsx   |  11 [32m+[m[31m-[m
+ frontend/src/context/AuthContext.jsx        |   7 [32m+[m[31m-[m
+ frontend/src/hooks/useAuth.js               |   4 [32m+[m[31m-[m
+ frontend/src/pages/Dashboard/Dashboard.jsx  | 267 [32m++++++++++++++++++++++++[m[31m----[m
+ frontend/src/pages/NotFound/NotFound.jsx    |  24 [32m+++[m
+ frontend/src/routes/AppRoutes.jsx           |  45 [32m++++[m[31m-[m
+ frontend/src/services/api.js                |  38 [32m+++[m[31m-[m
+ frontend/src/services/vehicleService.js     |   8 [32m+[m[31m-[m
+ 19 files changed, 675 insertions(+), 164 deletions(-)

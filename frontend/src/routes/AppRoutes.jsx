@@ -1,20 +1,25 @@
 import { Routes, Route } from "react-router-dom";
 
-import Home from "../pages/Home/Home";
 import Login from "../pages/Login/Login";
-import Dashboard from "../pages/Dashboard/Dashboard";
-import ProtectedRoute from "./ProtectedRoute";
 import Register from "../pages/Register/Register";
+import Home from "../pages/Home/Home";
+import Dashboard from "../pages/Dashboard/Dashboard";
 import Vehicles from "../pages/Vehicles/Vehicles";
+import Parking from "../pages/Parking/Parking";
+import ParkingSessions from "../pages/ParkingSessions/ParkingSessions";
+import NotFound from "../pages/NotFound/NotFound";
+
+import ProtectedRoute from "./ProtectedRoute";
 
 export default function AppRoutes() {
   return (
     <Routes>
+
       <Route path="/" element={<Home />} />
-      <Route path="/register" element={<Register />} />
 
       <Route path="/login" element={<Login />} />
-      <Route path="/vehicles" element={<Vehicles />} />
+
+      <Route path="/register" element={<Register />} />
 
       <Route
         path="/dashboard"
@@ -24,6 +29,36 @@ export default function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      <Route
+        path="/vehicles"
+        element={
+          <ProtectedRoute>
+            <Vehicles />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/parking"
+        element={
+          <ProtectedRoute>
+            <Parking />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/parking-sessions"
+        element={
+          <ProtectedRoute>
+            <ParkingSessions />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route path="*" element={<NotFound />} />
+
     </Routes>
   );
 }

@@ -2,25 +2,25 @@ import Card from "../ui/Card";
 
 const features = [
   {
-    icon: "🚗",
+    icon: "P",
     title: "Real-Time Parking Detection",
     description:
       "Instantly view available parking spaces without driving around the city.",
   },
   {
-    icon: "📍",
+    icon: "Map",
     title: "Interactive Parking Map",
     description:
       "Locate the nearest available parking space with directions to your destination.",
   },
   {
-    icon: "🔔",
+    icon: "Bell",
     title: "Smart Notifications",
     description:
       "Receive reminders before your parking time expires and extend your session if needed.",
   },
   {
-    icon: "💳",
+    icon: "Pay",
     title: "Automatic Billing",
     description:
       "Parking fees are calculated automatically based on the selected pricing rule.",
@@ -48,7 +48,9 @@ export default function Features() {
               key={feature.title}
               className="text-center hover:-translate-y-2"
             >
-              <div className="mb-5 text-6xl">{feature.icon}</div>
+              <div className="mb-5 text-3xl font-bold text-blue-600">
+                {feature.icon}
+              </div>
 
               <h3 className="mb-4 text-xl font-bold">
                 {feature.title}

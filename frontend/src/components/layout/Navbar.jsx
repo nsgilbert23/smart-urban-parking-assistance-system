@@ -5,11 +5,9 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
-
-        {/* Logo */}
         <Link to="/" className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-xl text-white shadow">
-            🅿
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-xl font-bold text-white shadow">
+            P
           </div>
 
           <div>
@@ -23,7 +21,6 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Menu */}
         <nav className="hidden gap-8 font-medium md:flex">
           <a href="#home" className="hover:text-blue-600">
             Home
@@ -42,7 +39,6 @@ export default function Navbar() {
           </a>
         </nav>
 
-        {/* Buttons */}
         <div className="flex gap-3">
           <Link to="/login">
             <Button variant="secondary">
@@ -56,7 +52,6 @@ export default function Navbar() {
             </Button>
           </Link>
         </div>
-
       </div>
     </header>
   );

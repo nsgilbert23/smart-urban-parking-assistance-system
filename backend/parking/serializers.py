@@ -59,8 +59,16 @@ class ParkingSessionSerializer(serializers.ModelSerializer):
         source="vehicle.plate_number",
         read_only=True,
     )
-    slot_number = serializers.CharField(source="slot.slot_number", read_only=True)
-    pricing_rule_name = serializers.CharField(source="pricing_rule.name", read_only=True)
+
+    slot_number = serializers.CharField(
+        source="slot.slot_number",
+        read_only=True,
+    )
+
+    pricing_rule_name = serializers.CharField(
+        source="pricing_rule.name",
+        read_only=True,
+    )
 
     class Meta:
         model = ParkingSession
@@ -80,6 +88,7 @@ class ParkingSessionSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
+
         read_only_fields = (
             "id",
             "vehicle_plate_number",
@@ -89,33 +98,72 @@ class ParkingSessionSerializer(serializers.ModelSerializer):
             "total_cost",
             "created_at",
             "updated_at",
+            "status",
         )
 
     def validate(self, attrs):
         instance = self.instance
-        slot = attrs.get("slot", getattr(instance, "slot", None))
+
+        slot = attrs.get(
+            "slot",
+            getattr(instance, "slot", None),
+        )
+
         status = attrs.get(
             "status",
-            getattr(instance, "status", ParkingSession.SessionStatus.ACTIVE),
+            getattr(
+                instance,
+                "status",
+                ParkingSession.SessionStatus.ACTIVE,
+            ),
         )
-        end_time = attrs.get("end_time", getattr(instance, "end_time", None))
-        start_time = attrs.get("start_time", getattr(instance, "start_time", None))
+
+        end_time = attrs.get(
+            "end_time",
+            getattr(instance, "end_time", None),
+        )
+
+        start_time = attrs.get(
+            "start_time",
+            getattr(
+                instance,
+                "start_time",
+                None,
+            ),
+        )
 
         if end_time and start_time and end_time < start_time:
             raise serializers.ValidationError(
-                {"end_time": "End time must be greater than or equal to start time."}
+                {
+                    "end_time": (
+                        "End time must be greater than "
+                        "or equal to start time."
+                    )
+                }
             )
 
-        if slot and status == ParkingSession.SessionStatus.ACTIVE:
+        if (
+            slot
+            and status == ParkingSession.SessionStatus.ACTIVE
+        ):
             queryset = ParkingSession.objects.filter(
                 slot=slot,
                 status=ParkingSession.SessionStatus.ACTIVE,
             )
+
             if instance:
-                queryset = queryset.exclude(pk=instance.pk)
+                queryset = queryset.exclude(
+                    pk=instance.pk
+                )
+
             if queryset.exists():
                 raise serializers.ValidationError(
-                    {"slot": "This parking slot already has an active session."}
+                    {
+                        "slot": (
+                            "This parking slot already "
+                            "has an active session."
+                        )
+                    }
                 )
 
         return attrs

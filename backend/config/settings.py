@@ -88,7 +88,7 @@ WSGI_APPLICATION = 'config.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DB_ENGINE = os.environ.get("DB_ENGINE", "postgresql").lower()
+DB_ENGINE = os.environ.get("DB_ENGINE", "sqlite").lower()
 
 if "test" in sys.argv or DB_ENGINE == "sqlite":
     DATABASES = {

@@ -5,13 +5,13 @@ export async function getVehicles() {
   return response.data;
 }
 
-export async function createVehicle(data) {
-  const response = await api.post("/vehicles/", data);
+export async function createVehicle(vehicle) {
+  const response = await api.post("/vehicles/", vehicle);
   return response.data;
 }
 
-export async function updateVehicle(id, data) {
-  const response = await api.put(`/vehicles/${id}/`, data);
+export async function updateVehicle(id, vehicle) {
+  const response = await api.put(`/vehicles/${id}/`, vehicle);
   return response.data;
 }
 

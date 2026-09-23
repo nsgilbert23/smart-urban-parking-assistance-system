@@ -55,6 +55,14 @@ class AuthAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("password_confirm", response.data)
 
+    def test_register_ignores_invalid_authorization_header(self):
+        self.client.credentials(HTTP_AUTHORIZATION="Bearer invalid-token")
+
+        response = self.register_user()
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["email"], self.register_payload["email"])
+
     def test_login_returns_jwt_tokens_and_user(self):
         self.register_user()
 

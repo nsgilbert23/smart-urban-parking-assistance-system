@@ -111,48 +111,82 @@ class ParkingSession(models.Model):
         EXPIRED = "EXPIRED", "Expired"
         CANCELLED = "CANCELLED", "Cancelled"
 
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
     vehicle = models.ForeignKey(
         Vehicle,
         on_delete=models.CASCADE,
         related_name="parking_sessions",
     )
+
     slot = models.ForeignKey(
         ParkingSlot,
         on_delete=models.CASCADE,
         related_name="parking_sessions",
     )
+
     pricing_rule = models.ForeignKey(
         PricingRule,
         on_delete=models.PROTECT,
         related_name="parking_sessions",
     )
+
     start_time = models.DateTimeField(default=timezone.now)
-    end_time = models.DateTimeField(blank=True, null=True)
-    duration_minutes = models.PositiveIntegerField(blank=True, null=True)
+
+    end_time = models.DateTimeField(
+        blank=True,
+        null=True,
+    )
+
+    duration_minutes = models.PositiveIntegerField(
+        blank=True,
+        null=True,
+    )
+
     total_cost = models.DecimalField(
         max_digits=10,
         decimal_places=2,
         blank=True,
         null=True,
-        validators=[MinValueValidator(Decimal("0.00"))],
+        validators=[
+            MinValueValidator(Decimal("0.00"))
+        ],
     )
+
     status = models.CharField(
         max_length=20,
         choices=SessionStatus.choices,
         default=SessionStatus.ACTIVE,
     )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
 
     class Meta:
         ordering = ["-start_time"]
+
         constraints = [
             models.UniqueConstraint(
                 fields=["slot"],
                 condition=Q(status="ACTIVE"),
                 name="unique_active_session_per_slot",
             ),
+
+            models.UniqueConstraint(
+                fields=["vehicle"],
+                condition=Q(status="ACTIVE"),
+                name="unique_active_session_per_vehicle",
+            ),
+
             models.CheckConstraint(
                 condition=(
                     Q(end_time__isnull=True)
@@ -161,23 +195,51 @@ class ParkingSession(models.Model):
                 name="parking_session_end_time_after_start_time",
             ),
         ]
+
         indexes = [
-            models.Index(fields=["slot", "status"]),
-            models.Index(fields=["vehicle", "status"]),
-            models.Index(fields=["start_time"]),
+            models.Index(
+                fields=["slot", "status"]
+            ),
+
+            models.Index(
+                fields=["vehicle", "status"]
+            ),
+
+            models.Index(
+                fields=["start_time"]
+            ),
         ]
 
     def save(self, *args, **kwargs):
         if self.end_time and self.start_time:
-            elapsed_seconds = max((self.end_time - self.start_time).total_seconds(), 0)
-            self.duration_minutes = int((elapsed_seconds + 59) // 60)
-            billable_minutes = max(
-                self.duration_minutes - self.pricing_rule.grace_period_minutes,
+            elapsed_seconds = max(
+                (self.end_time - self.start_time).total_seconds(),
                 0,
             )
-            hourly_cost = Decimal(str(self.pricing_rule.cost_per_hour))
-            cost = (Decimal(billable_minutes) / Decimal(60)) * hourly_cost
-            self.total_cost = cost.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+            self.duration_minutes = int(
+                (elapsed_seconds + 59) // 60
+            )
+
+            billable_minutes = max(
+                self.duration_minutes
+                - self.pricing_rule.grace_period_minutes,
+                0,
+            )
+
+            hourly_cost = Decimal(
+                str(self.pricing_rule.cost_per_hour)
+            )
+
+            cost = (
+                Decimal(billable_minutes)
+                / Decimal(60)
+            ) * hourly_cost
+
+            self.total_cost = cost.quantize(
+                Decimal("0.01"),
+                rounding=ROUND_HALF_UP,
+            )
 
         super().save(*args, **kwargs)
 

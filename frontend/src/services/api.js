@@ -2,17 +2,37 @@ import axios from "axios";
 import { storage } from "../utils/storage";
 
 const api = axios.create({
-  baseURL: "http://127.0.0.1:8000/api",
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000/api",
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-api.interceptors.request.use((config) => {
-  const token = storage.getAccessToken();
+// Add JWT access token to protected requests
+api.interceptors.request.use(
+  (config) => {
+    const access = storage.getAccessToken();
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
+    const publicEndpoints = [
+      "/auth/login/",
+      "/auth/register/",
+      "/auth/token/",
+      "/auth/token/refresh/",
+    ];
 
-  return config;
-});
+    const isPublicEndpoint = publicEndpoints.some((endpoint) =>
+      config.url?.includes(endpoint)
+    );
+
+    if (isPublicEndpoint) {
+      delete config.headers.Authorization;
+    } else if (access) {
+      config.headers.Authorization = `Bearer ${access}`;
+    }
+
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
 export default api;
