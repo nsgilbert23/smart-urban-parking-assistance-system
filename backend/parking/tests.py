@@ -124,7 +124,16 @@ class ParkingModelTests(TestCase):
         )
 
         self.assertEqual(session.duration_minutes, 75)
-        self.assertEqual(session.total_cost, Decimal("12.00"))
+        billable_minutes = max(
+            session.duration_minutes - pricing_rule.grace_period_minutes,
+            0,
+        )
+        expected_cost = (
+            Decimal(billable_minutes)
+            * Decimal(str(pricing_rule.cost_per_hour))
+            / Decimal("60")
+        ).quantize(Decimal("0.01"))
+        self.assertEqual(session.total_cost, expected_cost)
 
 
 class ParkingAPITests(TestCase):
@@ -224,7 +233,95 @@ class ParkingAPITests(TestCase):
         )
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(ParkingSession.objects.count(), 1)
+        self.assertEqual(ParkingSession.objects.count(), 0)
+        slot.refresh_from_db()
+        self.assertEqual(slot.status, ParkingSlot.SlotStatus.RESERVED)
+        self.assertEqual(slot.reserved_vehicle, self.vehicle)
+
+    def _staff_sensor_client(self):
+        staff = get_user_model().objects.create_user(
+            email="sensor-admin@example.com", first_name="Sensor", last_name="Admin",
+            password="StrongPass123", is_staff=True,
+        )
+        client = APIClient()
+        client.force_authenticate(user=staff)
+        return client
+
+    def test_sensor_event_resolves_slot_and_occupies_available_slot(self):
+        zone = ParkingZone.objects.create(name="Sensor Zone", location="Road")
+        slot = ParkingSlot.objects.create(zone=zone, slot_number="S1", sensor_id="sensor-101")
+        response = self._staff_sensor_client().post(
+            "/api/sensor-events/", {"sensor_id": "sensor-101", "occupied": True}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        slot.refresh_from_db()
+        self.assertEqual(slot.status, ParkingSlot.SlotStatus.OCCUPIED)
+
+    def test_sensor_departure_completes_session_with_cost_and_duration(self):
+        zone = ParkingZone.objects.create(name="Departure Zone", location="Road")
+        slot = ParkingSlot.objects.create(zone=zone, slot_number="S2", sensor_id="sensor-202", status=ParkingSlot.SlotStatus.OCCUPIED)
+        rule = PricingRule.objects.create(name="Sensor Rate", cost_per_hour="12.00", grace_period_minutes=15)
+        start = timezone.now() - timedelta(minutes=75)
+        session = ParkingSession.objects.create(vehicle=self.vehicle, slot=slot, pricing_rule=rule, start_time=start)
+        response = self._staff_sensor_client().post(
+            "/api/sensor-events/", {"sensor_id": "sensor-202", "occupied": False}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        session.refresh_from_db()
+        slot.refresh_from_db()
+        self.assertEqual(slot.status, ParkingSlot.SlotStatus.AVAILABLE)
+        self.assertEqual(session.status, ParkingSession.SessionStatus.COMPLETED)
+        self.assertIsNotNone(session.end_time)
+        self.assertGreaterEqual(session.duration_minutes, 75)
+        self.assertEqual(session.total_cost, Decimal("12.00"))
+
+    def test_reserved_sensor_occupancy_starts_session(self):
+        zone = ParkingZone.objects.create(name="Reservation Zone", location="Road")
+        slot = ParkingSlot.objects.create(zone=zone, slot_number="S3", sensor_id="sensor-303", status=ParkingSlot.SlotStatus.RESERVED, reserved_vehicle=self.vehicle)
+        rule = PricingRule.objects.create(name="Reservation Rate", cost_per_hour="8.00")
+        slot.reserved_pricing_rule = rule
+        slot.save()
+        response = self._staff_sensor_client().post(
+            "/api/sensor-events/", {"sensor_id": "sensor-303", "occupied": True}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        slot.refresh_from_db()
+        self.assertEqual(slot.status, ParkingSlot.SlotStatus.OCCUPIED)
+        self.assertIsNone(slot.reserved_vehicle_id)
+        self.assertEqual(ParkingSession.objects.filter(slot=slot, status="ACTIVE").count(), 1)
+
+    def test_unoccupied_event_does_not_clear_reservation(self):
+        zone = ParkingZone.objects.create(name="Still Reserved", location="Road")
+        slot = ParkingSlot.objects.create(
+            zone=zone, slot_number="S6", sensor_id="sensor-606",
+            status=ParkingSlot.SlotStatus.RESERVED, reserved_vehicle=self.vehicle,
+        )
+        response = self._staff_sensor_client().post(
+            "/api/sensor-events/", {"sensor_id": "sensor-606", "occupied": False}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        slot.refresh_from_db()
+        self.assertEqual(slot.status, ParkingSlot.SlotStatus.RESERVED)
+
+    def test_driver_cannot_send_sensor_event(self):
+        zone = ParkingZone.objects.create(name="Protected Zone", location="Road")
+        slot = ParkingSlot.objects.create(zone=zone, slot_number="S4", sensor_id="sensor-404")
+        response = self.client.post(
+            "/api/sensor-events/", {"sensor_id": "sensor-404", "occupied": True}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        slot.refresh_from_db()
+        self.assertEqual(slot.status, ParkingSlot.SlotStatus.AVAILABLE)
+
+    def test_maintenance_slot_rejects_sensor_event(self):
+        zone = ParkingZone.objects.create(name="Maintenance Zone", location="Road")
+        slot = ParkingSlot.objects.create(zone=zone, slot_number="S5", sensor_id="sensor-505", status=ParkingSlot.SlotStatus.MAINTENANCE)
+        response = self._staff_sensor_client().post(
+            "/api/sensor-events/", {"sensor_id": "sensor-505", "occupied": True}, format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        slot.refresh_from_db()
+        self.assertEqual(slot.status, ParkingSlot.SlotStatus.MAINTENANCE)
 
     def test_api_rejects_second_active_session_for_same_slot(self):
         zone = ParkingZone.objects.create(

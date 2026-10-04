@@ -6,6 +6,7 @@ from .views import (
     ParkingSlotViewSet,
     ParkingZoneViewSet,
     PricingRuleViewSet,
+    sensor_event,
 )
 
 
@@ -16,5 +17,6 @@ router.register("pricing-rules", PricingRuleViewSet, basename="pricing-rule")
 router.register("parking-sessions", ParkingSessionViewSet, basename="parking-session")
 
 urlpatterns = [
+    path("sensor-events/", sensor_event, name="sensor-event"),
     path("", include(router.urls)),
 ]

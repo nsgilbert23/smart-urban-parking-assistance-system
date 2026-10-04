@@ -50,6 +50,14 @@ class ParkingSlot(models.Model):
         default=SlotStatus.AVAILABLE,
     )
     sensor_id = models.CharField(max_length=100, blank=True, null=True, unique=True)
+    reserved_vehicle = models.ForeignKey(
+        Vehicle, on_delete=models.SET_NULL, blank=True, null=True,
+        related_name="parking_reservations",
+    )
+    reserved_pricing_rule = models.ForeignKey(
+        "PricingRule", on_delete=models.SET_NULL, blank=True, null=True,
+        related_name="parking_reservations",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

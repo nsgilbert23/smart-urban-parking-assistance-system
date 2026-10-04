@@ -6,7 +6,6 @@ import {
   getPricingRules,
   getParkingSessions,
   createParkingSession,
-  endParkingSession,
 } from "../../services/parkingService";
 
 import { getVehicles } from "../../services/vehicleService";
@@ -25,7 +24,6 @@ export default function Parking() {
 
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
-  const [endingSessionId, setEndingSessionId] = useState("");
 
   const [error, setError] = useState("");
 
@@ -196,13 +194,13 @@ export default function Parking() {
         status: "ACTIVE",
       });
 
-      alert("Parking started successfully!");
+      alert("Parking reserved. Your session and timer will start when the parking sensor detects your vehicle.");
 
       // Reset selections
       setSelectedSlot("");
       setSelectedVehicle("");
 
-      // Reload slots so the selected slot becomes occupied
+      // Reload slots so the reservation is visible.
       await loadParkingData();
 
     } catch (err) {
@@ -223,29 +221,6 @@ export default function Parking() {
       );
     } finally {
       setStarting(false);
-    }
-  }
-
-  async function handleEndSession(sessionId) {
-    try {
-      setEndingSessionId(sessionId);
-      setError("");
-
-      await endParkingSession(sessionId);
-      await loadParkingData();
-    } catch (err) {
-      console.error("Failed to end parking session:", err);
-
-      const responseData = err.response?.data;
-      const message = responseData
-        ? Object.values(responseData).flat().join(" ")
-        : "";
-
-      setError(
-        message || "Unable to end this parking session."
-      );
-    } finally {
-      setEndingSessionId("");
     }
   }
 
@@ -315,16 +290,7 @@ export default function Parking() {
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleEndSession(session.id)}
-                    disabled={endingSessionId === session.id}
-                    className="rounded-lg bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:bg-gray-400"
-                  >
-                    {endingSessionId === session.id
-                      ? "Ending..."
-                      : "End Session"}
-                  </button>
+                  <p className="text-sm text-blue-700">Ends automatically when the parking sensor detects that the vehicle has left.</p>
                 </div>
               ))}
             </div>

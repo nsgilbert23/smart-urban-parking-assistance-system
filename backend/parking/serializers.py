@@ -21,6 +21,7 @@ class ParkingZoneSerializer(serializers.ModelSerializer):
 
 class ParkingSlotSerializer(serializers.ModelSerializer):
     zone_name = serializers.CharField(source="zone.name", read_only=True)
+    reserved_vehicle_plate_number = serializers.CharField(source="reserved_vehicle.plate_number", read_only=True)
 
     class Meta:
         model = ParkingSlot
@@ -31,11 +32,23 @@ class ParkingSlotSerializer(serializers.ModelSerializer):
             "slot_number",
             "status",
             "sensor_id",
+            "reserved_vehicle",
+            "reserved_pricing_rule",
+            "reserved_vehicle_plate_number",
             "is_active",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "zone_name", "created_at", "updated_at")
+        read_only_fields = ("id", "zone_name", "reserved_vehicle", "reserved_pricing_rule", "reserved_vehicle_plate_number", "created_at", "updated_at")
+
+    def get_fields(self):
+        fields = super().get_fields()
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        fields["status"].read_only = not (
+            user and (user.is_staff or getattr(user, "role", "") in {"ADMIN", "OPERATOR"})
+        )
+        return fields
 
 
 class PricingRuleSerializer(serializers.ModelSerializer):
@@ -64,6 +77,10 @@ class ParkingSessionSerializer(serializers.ModelSerializer):
         source="slot.slot_number",
         read_only=True,
     )
+    zone_name = serializers.CharField(source="slot.zone.name", read_only=True)
+    slot_status = serializers.CharField(source="slot.status", read_only=True)
+    cost_per_hour = serializers.DecimalField(source="pricing_rule.cost_per_hour", max_digits=8, decimal_places=2, read_only=True)
+    grace_period_minutes = serializers.IntegerField(source="pricing_rule.grace_period_minutes", read_only=True)
 
     pricing_rule_name = serializers.CharField(
         source="pricing_rule.name",
@@ -78,8 +95,12 @@ class ParkingSessionSerializer(serializers.ModelSerializer):
             "vehicle_plate_number",
             "slot",
             "slot_number",
+            "zone_name",
+            "slot_status",
             "pricing_rule",
             "pricing_rule_name",
+            "cost_per_hour",
+            "grace_period_minutes",
             "start_time",
             "end_time",
             "duration_minutes",
@@ -94,8 +115,11 @@ class ParkingSessionSerializer(serializers.ModelSerializer):
             "vehicle_plate_number",
             "slot_number",
             "pricing_rule_name",
+            "cost_per_hour",
+            "grace_period_minutes",
             "duration_minutes",
             "total_cost",
+            "end_time",
             "created_at",
             "updated_at",
             "status",

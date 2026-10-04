@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import api from "../../services/api";
+import { getParkingSessions } from "../../services/parkingService";
 
 export default function ParkingSessions() {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
     loadSessions();
@@ -15,12 +16,7 @@ export default function ParkingSessions() {
       setLoading(true);
       setError("");
 
-      const response = await api.get("/parking-sessions/");
-
-      const data = Array.isArray(response.data)
-        ? response.data
-        : response.data.results || [];
-
+      const data = await getParkingSessions();
       setSessions(data);
     } catch (error) {
       console.error("Failed to load parking sessions:", error);
@@ -34,6 +30,11 @@ export default function ParkingSessions() {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   function formatDate(date) {
     if (!date) return "-";
@@ -153,6 +154,18 @@ export default function ParkingSessions() {
                   </div>
 
                   <div>
+                    <p className="text-sm text-gray-500">Parking Zone</p>
+                    <p className="font-semibold">{session.zone_name || "Unknown zone"}</p>
+                  </div>
+
+                  {session.status === "ACTIVE" && (
+                    <div>
+                      <p className="text-sm text-gray-500">Parking status</p>
+                      <p className="font-semibold">{session.slot_status || "OCCUPIED"}</p>
+                    </div>
+                  )}
+
+                  <div>
                     <p className="text-sm text-gray-500">
                       Pricing Rule
                     </p>
@@ -188,7 +201,9 @@ export default function ParkingSessions() {
                     </p>
 
                     <p className="font-semibold">
-                      {session.duration_minutes ?? 0} minutes
+                      {session.status === "ACTIVE"
+                        ? `${Math.max(0, Math.ceil((now - new Date(session.start_time).getTime()) / 60000))} minutes (elapsed)`
+                        : `${session.duration_minutes ?? 0} minutes`}
                     </p>
                   </div>
 
@@ -198,9 +213,17 @@ export default function ParkingSessions() {
                     </p>
 
                     <p className="text-2xl font-bold text-green-600">
-                      {formatCost(session.total_cost)} RWF
+                      {session.status === "ACTIVE"
+                        ? `${formatCost(Math.max(0, Math.ceil((now - new Date(session.start_time).getTime()) / 60000) - (session.grace_period_minutes || 0)) * Number(session.cost_per_hour || 0) / 60)} RWF (estimated)`
+                        : `${formatCost(session.total_cost)} RWF`}
                     </p>
                   </div>
+
+                  {session.status === "ACTIVE" && (
+                    <p className="border-t pt-4 text-sm text-blue-700">
+                      Parking ends automatically when the parking sensor detects that the vehicle has left.
+                    </p>
+                  )}
 
                 </div>
               </div>

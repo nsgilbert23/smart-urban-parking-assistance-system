@@ -71,10 +71,7 @@ export async function startParkingSession(session) {
   return createParkingSession(session);
 }
 
-export async function endParkingSession(id) {
-  const response = await api.post(
-    `/parking-sessions/${id}/end/`
-  );
-
+export async function reportSensorEvent(event) {
+  const response = await api.post("/sensor-events/", event);
   return response.data;
 }
