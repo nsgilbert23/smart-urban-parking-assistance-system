@@ -155,6 +155,9 @@ AUTH_USER_MODEL = 'accounts.User'
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG
 
+# Reservation window, in minutes. Configure with PARKING_RESERVATION_MINUTES.
+PARKING_RESERVATION_MINUTES = int(os.environ.get("PARKING_RESERVATION_MINUTES", "15"))
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',

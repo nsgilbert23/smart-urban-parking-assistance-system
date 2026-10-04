@@ -59,6 +59,8 @@ class ParkingSlot(models.Model):
         "PricingRule", on_delete=models.SET_NULL, blank=True, null=True,
         related_name="parking_reservations",
     )
+    reserved_at = models.DateTimeField(blank=True, null=True)
+    reservation_expires_at = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

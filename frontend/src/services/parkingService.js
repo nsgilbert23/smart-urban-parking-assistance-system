@@ -57,6 +57,11 @@ export async function createParkingSession(session) {
   return response.data;
 }
 
+export async function cancelParkingReservation(slotId) {
+  const response = await api.post(`/parking-slots/${slotId}/cancel-reservation/`);
+  return response.data;
+}
+
 
 export async function updateParkingSession(id, session) {
   const response = await api.patch(

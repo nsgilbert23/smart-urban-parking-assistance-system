@@ -22,6 +22,12 @@ class ParkingZoneSerializer(serializers.ModelSerializer):
 class ParkingSlotSerializer(serializers.ModelSerializer):
     zone_name = serializers.CharField(source="zone.name", read_only=True)
     reserved_vehicle_plate_number = serializers.CharField(source="reserved_vehicle.plate_number", read_only=True)
+    reservation_owned_by_current_user = serializers.SerializerMethodField()
+
+    def get_reservation_owned_by_current_user(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        return bool(user and user.is_authenticated and obj.reserved_vehicle_id and obj.reserved_vehicle.owner_id == user.id)
 
     class Meta:
         model = ParkingSlot
@@ -35,11 +41,14 @@ class ParkingSlotSerializer(serializers.ModelSerializer):
             "reserved_vehicle",
             "reserved_pricing_rule",
             "reserved_vehicle_plate_number",
+            "reserved_at",
+            "reservation_expires_at",
+            "reservation_owned_by_current_user",
             "is_active",
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "zone_name", "reserved_vehicle", "reserved_pricing_rule", "reserved_vehicle_plate_number", "created_at", "updated_at")
+        read_only_fields = ("id", "zone_name", "reserved_vehicle", "reserved_pricing_rule", "reserved_vehicle_plate_number", "reserved_at", "reservation_expires_at", "reservation_owned_by_current_user", "created_at", "updated_at")
 
     def get_fields(self):
         fields = super().get_fields()

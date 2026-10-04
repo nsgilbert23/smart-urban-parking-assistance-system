@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   getParkingZones,
@@ -6,6 +6,7 @@ import {
   getPricingRules,
   getParkingSessions,
   createParkingSession,
+  cancelParkingReservation,
 } from "../../services/parkingService";
 
 import { getVehicles } from "../../services/vehicleService";
@@ -26,6 +27,9 @@ export default function Parking() {
   const [starting, setStarting] = useState(false);
 
   const [error, setError] = useState("");
+  const [now, setNow] = useState(Date.now());
+  const [expiredNotice, setExpiredNotice] = useState(false);
+  const refreshedExpiryIds = useRef(new Set());
 
   // ==========================================
   // LOAD DATA
@@ -34,6 +38,41 @@ export default function Parking() {
   useEffect(() => {
     loadParkingData();
   }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const ownReservations = useMemo(() => slots.filter(
+    (slot) => slot.status === "RESERVED" && slot.reservation_owned_by_current_user
+  ), [slots]);
+
+  useEffect(() => {
+    const expired = ownReservations.filter((slot) =>
+      slot.reservation_expires_at &&
+      new Date(slot.reservation_expires_at).getTime() <= now &&
+      !refreshedExpiryIds.current.has(slot.id)
+    );
+    if (!expired.length) return;
+    expired.forEach((slot) => refreshedExpiryIds.current.add(slot.id));
+    setExpiredNotice(true);
+    getParkingSlots().then(setSlots).catch((err) => {
+      console.error("Failed to refresh expired reservation:", err);
+    });
+  }, [ownReservations, now]);
+
+  async function cancelReservation(slotId) {
+    try {
+      await cancelParkingReservation(slotId);
+      setSlots(await getParkingSlots());
+    } catch (err) {
+      const message = err.response?.data
+        ? Object.values(err.response.data).flat().join(" ")
+        : "Unable to cancel this reservation. Please refresh and try again.";
+      setError(message);
+    }
+  }
 
   async function loadParkingData() {
     try {
@@ -271,6 +310,38 @@ export default function Parking() {
         {error && (
           <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
             {error}
+          </div>
+        )}
+
+        {expiredNotice && (
+          <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900" role="status">
+            Your reservation has expired. Parking availability has been refreshed.
+          </div>
+        )}
+
+        {ownReservations.length > 0 && (
+          <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+            <h2 className="font-semibold text-blue-900">Your reservation</h2>
+            <div className="mt-3 space-y-3">
+              {ownReservations.map((slot) => {
+                const seconds = slot.reservation_expires_at
+                  ? Math.max(0, Math.ceil((new Date(slot.reservation_expires_at).getTime() - now) / 1000))
+                  : null;
+                const countdown = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+                return (
+                  <div key={slot.id} className="flex flex-col justify-between gap-3 rounded-lg bg-white p-4 md:flex-row md:items-center">
+                    <div>
+                      <p className="font-semibold text-gray-900">{slot.zone_name} · Slot {slot.slot_number}</p>
+                      <p className="text-sm text-gray-600">Vehicle {slot.reserved_vehicle_plate_number || "—"} · Status: Reserved</p>
+                      <p className="text-sm text-gray-600">{slot.reservation_expires_at ? <>Expires {new Date(slot.reservation_expires_at).toLocaleString()} · Reserved for {countdown}</> : "Reservation expiration is not available."}</p>
+                    </div>
+                    <button type="button" onClick={() => cancelReservation(slot.id)} className="rounded-lg border border-red-200 px-4 py-2 font-semibold text-red-700 hover:bg-red-50">
+                      Cancel Reservation
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
 
