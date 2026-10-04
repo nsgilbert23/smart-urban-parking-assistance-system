@@ -45,14 +45,20 @@ export default function Parking() {
         slotsData,
         vehiclesData,
         pricingData,
-        sessionsData,
       ] = await Promise.all([
         getParkingZones(),
         getParkingSlots(),
         getVehicles(),
         getPricingRules(),
-        getParkingSessions(),
       ]);
+
+      // Session history is supplementary to the reservation form. A failure
+      // loading it should not prevent zones, slots, vehicles, and prices from
+      // being displayed.
+      const sessionsData = await getParkingSessions().catch((err) => {
+        console.error("Failed to load parking sessions:", err);
+        return [];
+      });
 
       setZones(zonesData);
       setSlots(slotsData);

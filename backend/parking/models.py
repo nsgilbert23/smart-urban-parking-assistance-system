@@ -1,6 +1,7 @@
 import uuid
 from decimal import Decimal, ROUND_HALF_UP
 
+from django.contrib.auth.hashers import check_password, make_password
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
@@ -78,6 +79,39 @@ class ParkingSlot(models.Model):
 
     def __str__(self):
         return f"{self.zone.name} - {self.slot_number}"
+
+
+class ParkingSensor(models.Model):
+    """A provisioned device credential bound to exactly one parking slot."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    device_id = models.CharField(max_length=100, unique=True)
+    secret_hash = models.CharField(max_length=256)
+    slot = models.OneToOneField(
+        ParkingSlot,
+        on_delete=models.CASCADE,
+        related_name="sensor_device",
+    )
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
+
+    def set_secret(self, raw_secret):
+        self.secret_hash = make_password(raw_secret)
+
+    def check_secret(self, raw_secret):
+        return check_password(raw_secret, self.secret_hash)
+
+    def __str__(self):
+        return self.device_id
 
 
 class PricingRule(models.Model):

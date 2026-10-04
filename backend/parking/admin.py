@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import ParkingSession, ParkingSlot, ParkingZone, PricingRule
+from .models import ParkingSensor, ParkingSession, ParkingSlot, ParkingZone, PricingRule
 
 
 class ParkingSlotInline(admin.TabularInline):
@@ -82,3 +82,15 @@ class ParkingSessionAdmin(admin.ModelAdmin):
         "updated_at",
     )
     autocomplete_fields = ("vehicle", "slot", "pricing_rule")
+
+
+@admin.register(ParkingSensor)
+class ParkingSensorAdmin(admin.ModelAdmin):
+    list_display = ("device_id", "slot", "is_active", "created_at", "updated_at")
+    list_filter = ("is_active",)
+    search_fields = ("device_id", "slot__sensor_id", "slot__slot_number")
+    readonly_fields = ("id", "secret_hash", "created_at", "updated_at")
+
+    def has_add_permission(self, request):
+        # Credentials are generated and printed once by the provisioning command.
+        return False

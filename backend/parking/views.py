@@ -1,11 +1,15 @@
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, permission_classes
-from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import IsAdminUser
+from rest_framework.decorators import (
+    api_view,
+    authentication_classes,
+    permission_classes,
+)
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
+from .authentication import IsParkingSensor, ParkingSensorAuthentication
 from .models import ParkingSession, ParkingSlot, ParkingZone, PricingRule
 from .serializers import (
     ParkingSessionSerializer, ParkingSlotSerializer,
@@ -14,20 +18,21 @@ from .serializers import (
 
 
 @api_view(["POST"])
-@permission_classes([IsAdminUser])
+@authentication_classes([ParkingSensorAuthentication])
+@permission_classes([IsParkingSensor])
 @transaction.atomic
 def sensor_event(request):
-    """Development gateway; replace staff authentication with device auth before deployment."""
+    """Process an occupancy reading from the device assigned to that slot."""
     sensor_id = request.data.get("sensor_id")
     occupied = request.data.get("occupied")
     if not isinstance(sensor_id, str) or not sensor_id.strip() or not isinstance(occupied, bool):
         raise ValidationError({"detail": "sensor_id and boolean occupied are required."})
-    try:
-        slot = ParkingSlot.objects.select_for_update().select_related(
-            "reserved_vehicle", "reserved_pricing_rule",
-        ).get(sensor_id=sensor_id)
-    except ParkingSlot.DoesNotExist:
-        raise ValidationError({"sensor_id": "No parking slot is configured for this sensor."})
+    device = request.user
+    slot = ParkingSlot.objects.select_for_update().select_related(
+        "reserved_vehicle", "reserved_pricing_rule",
+    ).get(pk=device.slot_id)
+    if slot.sensor_id != sensor_id:
+        raise PermissionDenied("This device is not authorized for that sensor.")
     if slot.status == ParkingSlot.SlotStatus.MAINTENANCE:
         raise ValidationError({"slot": "Maintenance slots ignore sensor occupancy events."})
 
