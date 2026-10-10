@@ -157,6 +157,150 @@ class ParkingAPITests(TestCase):
             color="Blue",
         )
 
+    def create_history_session(
+        self, *, status_value, start_time, plate_suffix, end_time=None
+    ):
+        vehicle = self.vehicle
+        if plate_suffix:
+            vehicle = Vehicle.objects.create(
+                owner=self.user,
+                plate_number=f"{plate_suffix}-1",
+                brand="Toyota",
+                model="Corolla",
+                color="Blue",
+            )
+        zone = ParkingZone.objects.create(
+            name=f"History {plate_suffix or 'Main'}",
+            location="Main Street",
+        )
+        slot = ParkingSlot.objects.create(zone=zone, slot_number="H1")
+        rule = PricingRule.objects.create(
+            name=f"History Rate {plate_suffix or 'Main'}", cost_per_hour="10.00"
+        )
+        return ParkingSession.objects.create(
+            vehicle=vehicle,
+            slot=slot,
+            pricing_rule=rule,
+            start_time=start_time,
+            end_time=end_time,
+            status=status_value,
+        )
+
+    def test_parking_session_list_requires_authentication(self):
+        response = APIClient().get("/api/parking-sessions/")
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_parking_history_contains_all_statuses_and_only_owned_sessions(self):
+        now = timezone.now()
+        own_sessions = [
+            self.create_history_session(
+                status_value=session_status,
+                start_time=now - timedelta(days=index),
+                plate_suffix=session_status,
+                end_time=(now - timedelta(days=index - 1))
+                if session_status == ParkingSession.SessionStatus.COMPLETED
+                else None,
+            )
+            for index, session_status in enumerate(
+                (
+                    ParkingSession.SessionStatus.ACTIVE,
+                    ParkingSession.SessionStatus.COMPLETED,
+                    ParkingSession.SessionStatus.EXPIRED,
+                    ParkingSession.SessionStatus.CANCELLED,
+                )
+            )
+        ]
+        other = get_user_model().objects.create_user(
+            email="history-other@example.com", password="StrongPass123"
+        )
+        other_vehicle = Vehicle.objects.create(
+            owner=other,
+            plate_number="OTHER-HISTORY",
+            brand="Honda",
+            model="Civic",
+            color="Black",
+        )
+        zone = ParkingZone.objects.create(name="Other History", location="Other")
+        slot = ParkingSlot.objects.create(zone=zone, slot_number="O1")
+        rule = PricingRule.objects.create(name="Other History Rate", cost_per_hour="5.00")
+        ParkingSession.objects.create(
+            vehicle=other_vehicle,
+            slot=slot,
+            pricing_rule=rule,
+            start_time=now,
+            status=ParkingSession.SessionStatus.COMPLETED,
+        )
+
+        response = self.client.get("/api/parking-sessions/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 4)
+        self.assertEqual(
+            {item["status"] for item in response.data},
+            {session.status for session in own_sessions},
+        )
+        self.assertNotIn("OTHER-HISTORY", {item["vehicle_plate_number"] for item in response.data})
+        self.assertEqual(
+            [item["start_time"] for item in response.data],
+            sorted((item["start_time"] for item in response.data), reverse=True),
+        )
+
+    def test_parking_history_filters_by_status_and_start_date_range(self):
+        now = timezone.now()
+        self.create_history_session(
+            status_value=ParkingSession.SessionStatus.COMPLETED,
+            start_time=now - timedelta(days=1),
+            plate_suffix="RECENT",
+            end_time=now,
+        )
+        self.create_history_session(
+            status_value=ParkingSession.SessionStatus.EXPIRED,
+            start_time=now - timedelta(days=10),
+            plate_suffix="OLDER",
+        )
+
+        response = self.client.get(
+            "/api/parking-sessions/",
+            {
+                "status": ParkingSession.SessionStatus.COMPLETED,
+                "start_date": (now - timedelta(days=2)).date().isoformat(),
+                "end_date": now.date().isoformat(),
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["vehicle_plate_number"], "RECENT-1")
+
+    def test_parking_history_rejects_invalid_status_and_date_range(self):
+        invalid_status = self.client.get(
+            "/api/parking-sessions/", {"status": "UNKNOWN"}
+        )
+        self.assertEqual(invalid_status.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("status", invalid_status.data)
+
+        invalid_dates = self.client.get(
+            "/api/parking-sessions/",
+            {"start_date": "2026-03-02", "end_date": "2026-02-01"},
+        )
+        self.assertEqual(invalid_dates.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("end_date", invalid_dates.data)
+
+    def test_parking_history_keeps_missing_cost_and_end_time_null(self):
+        session = self.create_history_session(
+            status_value=ParkingSession.SessionStatus.ACTIVE,
+            start_time=timezone.now(),
+            plate_suffix="ACTIVE",
+        )
+
+        response = self.client.get("/api/parking-sessions/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        item = next(value for value in response.data if value["id"] == str(session.id))
+        self.assertIsNone(item["end_time"])
+        self.assertIsNone(item["duration_minutes"])
+        self.assertIsNone(item["total_cost"])
+
     def test_create_parking_zone(self):
         response = self.client.post(
             "/api/parking-zones/",

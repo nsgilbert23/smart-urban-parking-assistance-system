@@ -42,8 +42,8 @@ export async function getPricingRules() {
 // PARKING SESSIONS
 // ===============================
 
-export async function getParkingSessions() {
-  const response = await api.get("/parking-sessions/");
+export async function getParkingSessions(filters = {}) {
+  const response = await api.get("/parking-sessions/", { params: filters });
   return response.data;
 }
 

@@ -7,6 +7,7 @@ import Dashboard from "../pages/Dashboard/Dashboard";
 import Vehicles from "../pages/Vehicles/Vehicles";
 import Parking from "../pages/Parking/Parking";
 import ParkingSessions from "../pages/ParkingSessions/ParkingSessions";
+import ParkingHistory from "../pages/ParkingHistory/ParkingHistory";
 import Profile from "../pages/Profile/Profile";
 import NotFound from "../pages/NotFound/NotFound";
 
@@ -54,6 +55,15 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <ParkingSessions />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/parking-history"
+        element={
+          <ProtectedRoute>
+            <ParkingHistory />
           </ProtectedRoute>
         }
       />

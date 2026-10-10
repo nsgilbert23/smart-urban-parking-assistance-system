@@ -1,6 +1,6 @@
 from django.db import transaction
 from django.utils import timezone
-from rest_framework import status, viewsets
+from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import (
     api_view,
     authentication_classes,
@@ -134,6 +134,38 @@ class ParkingSessionViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "post", "head", "options"]
     queryset = ParkingSession.objects.select_related("vehicle", "slot__zone", "pricing_rule")
     serializer_class = ParkingSessionSerializer
+
+    def get_queryset(self):
+        queryset = self.queryset.filter(vehicle__owner=self.request.user)
+        params = self.request.query_params
+        status_value = params.get("status")
+        if status_value:
+            status_field = serializers.ChoiceField(
+                choices=ParkingSession.SessionStatus.choices
+            )
+            try:
+                status_value = status_field.run_validation(status_value)
+            except serializers.ValidationError as error:
+                raise ValidationError({"status": error.detail}) from error
+            queryset = queryset.filter(status=status_value)
+
+        date_filters = {}
+        for param, lookup in (
+            ("start_date", "start_time__date__gte"),
+            ("end_date", "start_time__date__lte"),
+        ):
+            value = params.get(param)
+            if value:
+                try:
+                    date_filters[lookup] = serializers.DateField().run_validation(value)
+                except serializers.ValidationError as error:
+                    raise ValidationError({param: error.detail}) from error
+
+        start_date = date_filters.get("start_time__date__gte")
+        end_date = date_filters.get("start_time__date__lte")
+        if start_date and end_date and start_date > end_date:
+            raise ValidationError({"end_date": "End date must be on or after start date."})
+        return queryset.filter(**date_filters).order_by("-start_time")
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

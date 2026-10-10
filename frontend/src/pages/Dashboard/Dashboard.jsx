@@ -162,6 +162,16 @@ export default function Dashboard() {
             </p>
           </Link>
 
+          <Link
+            to="/parking-history"
+            className="group rounded-xl bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-xl"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-amber-100 text-2xl text-amber-700" aria-hidden="true">↻</div>
+            <h2 className="mt-5 text-xl font-bold text-gray-900">Parking History</h2>
+            <p className="mt-2 text-gray-500">Review completed and previous parking sessions.</p>
+            <p className="mt-5 font-semibold text-amber-700 group-hover:text-amber-800">View History →</p>
+          </Link>
+
         </div>
 
         {/* ================= PARKING WORKFLOW ================= */}
