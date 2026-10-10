@@ -21,6 +21,47 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ("id", "role", "date_joined")
 
 
+class ProfileSerializer(serializers.ModelSerializer):
+    """Expose safe profile data and allow edits to contact details only."""
+
+    PROTECTED_FIELDS = {
+        "id",
+        "email",
+        "role",
+        "is_active",
+        "is_staff",
+        "is_superuser",
+        "groups",
+        "user_permissions",
+        "password",
+        "last_login",
+        "date_joined",
+    }
+
+    class Meta:
+        model = User
+        fields = (
+            "id",
+            "first_name",
+            "last_name",
+            "email",
+            "phone_number",
+            "role",
+        )
+        read_only_fields = ("id", "email", "role")
+
+    def to_internal_value(self, data):
+        protected = self.PROTECTED_FIELDS.intersection(data)
+        if protected:
+            raise serializers.ValidationError(
+                {
+                    field: "This field may not be updated."
+                    for field in sorted(protected)
+                }
+            )
+        return super().to_internal_value(data)
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
     password_confirm = serializers.CharField(write_only=True, min_length=8)

@@ -7,6 +7,7 @@ import Dashboard from "../pages/Dashboard/Dashboard";
 import Vehicles from "../pages/Vehicles/Vehicles";
 import Parking from "../pages/Parking/Parking";
 import ParkingSessions from "../pages/ParkingSessions/ParkingSessions";
+import Profile from "../pages/Profile/Profile";
 import NotFound from "../pages/NotFound/NotFound";
 
 import ProtectedRoute from "./ProtectedRoute";
@@ -53,6 +54,15 @@ export default function AppRoutes() {
         element={
           <ProtectedRoute>
             <ParkingSessions />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <Profile />
           </ProtectedRoute>
         }
       />

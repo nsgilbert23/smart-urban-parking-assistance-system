@@ -1,7 +1,12 @@
 from rest_framework import generics, permissions
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .serializers import LoginSerializer, RegisterSerializer, UserSerializer
+from .serializers import (
+    LoginSerializer,
+    ProfileSerializer,
+    RegisterSerializer,
+    UserSerializer,
+)
 
 
 class RegisterView(generics.CreateAPIView):
@@ -18,6 +23,13 @@ class LoginView(TokenObtainPairView):
 
 class MeView(generics.RetrieveAPIView):
     serializer_class = UserSerializer
+
+    def get_object(self):
+        return self.request.user
+
+
+class ProfileView(generics.RetrieveUpdateAPIView):
+    serializer_class = ProfileSerializer
 
     def get_object(self):
         return self.request.user

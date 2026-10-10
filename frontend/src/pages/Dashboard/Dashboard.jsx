@@ -28,6 +28,13 @@ export default function Dashboard() {
               {user?.email}
             </span>
 
+            <Link
+              to="/profile"
+              className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-white"
+            >
+              Profile
+            </Link>
+
             <button
               onClick={logout}
               className="rounded-lg bg-red-500 px-4 py-2 font-semibold text-white transition hover:bg-red-600"
@@ -97,6 +104,18 @@ export default function Dashboard() {
             <p className="mt-5 font-semibold text-blue-600 group-hover:text-blue-700">
               Manage Vehicles →
             </p>
+          </Link>
+
+          <Link
+            to="/profile"
+            className="group rounded-xl bg-white p-6 shadow transition hover:-translate-y-1 hover:shadow-xl"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100 text-2xl text-indigo-700" aria-hidden="true">
+              {user?.first_name?.charAt(0)?.toUpperCase() || "D"}
+            </div>
+            <h2 className="mt-5 text-xl font-bold text-gray-900">Driver Profile</h2>
+            <p className="mt-2 text-gray-500">Review your details and update your contact information.</p>
+            <p className="mt-5 font-semibold text-indigo-600 group-hover:text-indigo-700">View Profile →</p>
           </Link>
 
           {/* Find Parking */}

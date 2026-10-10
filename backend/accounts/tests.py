@@ -2,12 +2,15 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from .models import User
+
 
 class AuthAPITests(APITestCase):
     def setUp(self):
         self.register_url = reverse("register")
         self.login_url = reverse("login")
         self.me_url = reverse("me")
+        self.profile_url = reverse("profile")
         self.password = "StrongPass123!"
         self.register_payload = {
             "email": "driver@example.com",
@@ -102,3 +105,70 @@ class AuthAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data["email"], self.register_payload["email"])
+
+    def test_profile_requires_authentication(self):
+        response = self.client.get(self.profile_url)
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_profile_returns_authenticated_user_without_sensitive_fields(self):
+        self.register_user()
+        user = User.objects.get(email=self.register_payload["email"])
+        self.client.force_authenticate(user=user)
+
+        response = self.client.get(self.profile_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["id"], str(user.id))
+        self.assertEqual(response.data["email"], self.register_payload["email"])
+        self.assertEqual(response.data["role"], "DRIVER")
+        self.assertNotIn("password", response.data)
+
+    def test_profile_updates_permitted_fields(self):
+        self.register_user()
+        user = User.objects.get(email=self.register_payload["email"])
+        self.client.force_authenticate(user=user)
+
+        response = self.client.patch(
+            self.profile_url,
+            {
+                "first_name": "Updated",
+                "last_name": "Name",
+                "phone_number": "+250788123456",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        user.refresh_from_db()
+        self.assertEqual(user.first_name, "Updated")
+        self.assertEqual(user.last_name, "Name")
+        self.assertEqual(user.phone_number, "+250788123456")
+
+    def test_profile_rejects_invalid_input(self):
+        self.register_user()
+        user = User.objects.get(email=self.register_payload["email"])
+        self.client.force_authenticate(user=user)
+
+        response = self.client.patch(
+            self.profile_url, {"first_name": ""}, format="json"
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("first_name", response.data)
+
+    def test_profile_rejects_protected_field_updates(self):
+        self.register_user()
+        user = User.objects.get(email=self.register_payload["email"])
+        self.client.force_authenticate(user=user)
+
+        response = self.client.patch(
+            self.profile_url,
+            {"role": "ADMIN", "is_staff": True, "email": "other@example.com"},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        user.refresh_from_db()
+        self.assertEqual(user.role, "DRIVER")
+        self.assertFalse(user.is_staff)
+        self.assertEqual(user.email, self.register_payload["email"])
