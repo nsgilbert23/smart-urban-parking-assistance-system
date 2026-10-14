@@ -22,7 +22,7 @@ export default function Login() {
     setError("");
     try {
       const result = await login(form);
-      navigate(["OPERATOR", "ADMIN"].includes(result.user?.role) ? "/operator-dashboard" : "/dashboard");
+      navigate(result.user?.role === "ADMIN" ? "/admin-dashboard" : result.user?.role === "OPERATOR" ? "/operator-dashboard" : "/dashboard");
     } catch (requestError) {
       setError(requestError.response?.data?.detail || "We couldn’t sign you in. Check your details and try again.");
     } finally {

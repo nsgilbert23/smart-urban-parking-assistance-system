@@ -7,6 +7,7 @@ import {
   getParkingSessions,
   createParkingSession,
   cancelParkingReservation,
+  findNearbyParking,
 } from "../../services/parkingService";
 
 import { getVehicles } from "../../services/vehicleService";
@@ -30,7 +31,54 @@ export default function Parking() {
   const [success, setSuccess] = useState("");
   const [now, setNow] = useState(Date.now());
   const [expiredNotice, setExpiredNotice] = useState(false);
+  const [nearbyResults, setNearbyResults] = useState(null);
+  const [findingNearby, setFindingNearby] = useState(false);
+  const [nearbyError, setNearbyError] = useState("");
   const refreshedExpiryIds = useRef(new Set());
+
+  async function handleFindNearby() {
+    setNearbyError("");
+    setNearbyResults(null);
+    if (!window.isSecureContext || !navigator.geolocation) {
+      setNearbyError("Nearby search needs a secure connection and a browser that supports location. You can still choose a zone below.");
+      return;
+    }
+
+    setFindingNearby(true);
+    try {
+      const position = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 30000,
+        });
+      });
+      const result = await findNearbyParking({
+        latitude: Number(position.coords.latitude.toFixed(6)),
+        longitude: Number(position.coords.longitude.toFixed(6)),
+      });
+      setNearbyResults(result.results);
+    } catch (requestError) {
+      if (typeof requestError.code === "number") {
+        const locationErrors = {
+          1: "Location permission was denied. You can still choose a parking zone below.",
+          2: "Your location is unavailable right now. Try again or choose a zone below.",
+          3: "Location lookup timed out. Try again or choose a zone below.",
+        };
+        setNearbyError(locationErrors[requestError.code] || "Your location could not be determined.");
+      } else if (requestError.response?.status === 401) {
+        setNearbyError("Your session has expired. Please sign in again.");
+      } else {
+        setNearbyError("Nearby parking could not be loaded. Please try again.");
+      }
+    } finally {
+      setFindingNearby(false);
+    }
+  }
+
+  function formatDistance(meters) {
+    return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
+  }
 
   // ==========================================
   // LOAD DATA
@@ -310,6 +358,39 @@ export default function Parking() {
             Find an available parking space and start your parking session.
           </p>
         </div>
+
+        <section className="mb-6 rounded-2xl border border-teal-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="nearby-parking-heading">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 id="nearby-parking-heading" className="text-lg font-bold text-gray-900">Find parking near me</h2>
+              <p className="mt-1 text-sm text-gray-600">Share your location once to see nearby zones with available spaces. Your location is not saved.</p>
+            </div>
+            <button type="button" onClick={handleFindNearby} disabled={findingNearby} className="shrink-0 rounded-lg bg-teal-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-teal-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60">
+              {findingNearby ? "Finding nearby parking..." : "Use my location"}
+            </button>
+          </div>
+          {nearbyError && <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="alert">{nearbyError}</p>}
+          {nearbyResults && nearbyResults.length === 0 && <p className="mt-4 rounded-lg bg-slate-50 p-4 text-sm text-slate-700" role="status">No zones with saved entrance coordinates currently have available spaces. You can still browse all zones below.</p>}
+          {nearbyResults?.length > 0 && (
+            <ul className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Nearby parking zones">
+              {nearbyResults.map((zone) => {
+                const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${zone.latitude},${zone.longitude}`)}`;
+                return (
+                  <li key={zone.id} className="rounded-xl border border-slate-200 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div><h3 className="font-semibold text-slate-900">{zone.name}</h3><p className="mt-1 text-sm text-slate-600">{zone.location}</p></div>
+                      <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">{zone.available_spaces} available</span>
+                    </div>
+                    <div className="mt-4 flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-slate-700">{formatDistance(zone.distance_meters)} away <span className="text-slate-500">(straight-line)</span></p>
+                      <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg border border-teal-700 px-3 py-2 text-sm font-semibold text-teal-900 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600" aria-label={`Get directions to ${zone.name} in Google Maps`}>Directions</a>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
 
 
         {/* Error */}

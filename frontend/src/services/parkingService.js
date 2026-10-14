@@ -9,6 +9,11 @@ export async function getParkingZones() {
   return response.data;
 }
 
+export async function findNearbyParking(location) {
+  const response = await api.post("/parking/nearby/", location);
+  return response.data;
+}
+
 
 // ===============================
 // PARKING SLOTS

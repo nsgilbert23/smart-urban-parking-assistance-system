@@ -61,4 +61,7 @@ urlpatterns = [
 
     # In-app notifications
     path("api/notifications/", include("notifications.urls")),
+
+    # Reports and analytics
+    path("api/reports/", include("reports.urls")),
 ]

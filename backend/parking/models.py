@@ -2,7 +2,7 @@ import uuid
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.contrib.auth.hashers import check_password, make_password
-from django.core.validators import MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
@@ -15,6 +15,20 @@ class ParkingZone(models.Model):
     name = models.CharField(max_length=100, unique=True)
     location = models.CharField(max_length=255)
     description = models.TextField(blank=True)
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(-90), MaxValueValidator(90)],
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(-180), MaxValueValidator(180)],
+    )
     total_slots = models.PositiveIntegerField(default=0)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -25,6 +39,15 @@ class ParkingZone(models.Model):
         indexes = [
             models.Index(fields=["name"]),
             models.Index(fields=["is_active"]),
+        ]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(latitude__isnull=True, longitude__isnull=True)
+                    | Q(latitude__isnull=False, longitude__isnull=False)
+                ),
+                name="parking_zone_coordinates_together",
+            ),
         ]
 
     def __str__(self):

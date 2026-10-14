@@ -1,5 +1,9 @@
+from math import atan2, cos, radians, sin, sqrt
+
+from django.contrib.auth import get_user_model
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Count, DecimalField, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import permissions, serializers, status, viewsets
@@ -15,8 +19,9 @@ from rest_framework.response import Response
 from .authentication import IsParkingSensor, ParkingSensorAuthentication
 from .models import ParkingSession, ParkingSlot, ParkingZone, PricingRule
 from .serializers import (
-    OperatorSlotStatusSerializer, ParkingSessionSerializer, ParkingSlotSerializer,
-    ParkingZoneSerializer, PricingRuleSerializer,
+    NearbyParkingQuerySerializer, OperatorSlotStatusSerializer,
+    ParkingSessionSerializer, ParkingSlotSerializer, ParkingZoneSerializer,
+    PricingRuleSerializer,
 )
 from .reservations import expire_reservations, reservation_expiration
 
@@ -31,6 +36,214 @@ class IsParkingOperator(permissions.BasePermission):
             and user.is_authenticated
             and getattr(user, "role", "") in {"OPERATOR", "ADMIN"}
         )
+
+
+class IsParkingAdmin(permissions.BasePermission):
+    message = "An administrator account is required to access this resource."
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and getattr(user, "role", "") == "ADMIN"
+        )
+
+
+@api_view(["GET"])
+@permission_classes([IsParkingAdmin])
+def admin_dashboard(request):
+    """Return platform-wide summary data for the administrator workspace."""
+    user_model = get_user_model()
+    slot_counts = {
+        item["status"]: item["count"]
+        for item in ParkingSlot.objects.values("status").annotate(count=Count("id"))
+    }
+    completed_revenue = ParkingSession.objects.filter(
+        status=ParkingSession.SessionStatus.COMPLETED
+    ).aggregate(
+        total=Coalesce(
+            Sum("total_cost"),
+            Value(0, output_field=DecimalField(max_digits=12, decimal_places=2)),
+        )
+    )["total"]
+    recent_sessions = ParkingSession.objects.select_related(
+        "vehicle", "slot__zone", "pricing_rule"
+    ).order_by("-start_time", "-pk")[:8]
+    zones = ParkingZone.objects.annotate(slot_count=Count("slots")).order_by("name")
+
+    return Response({
+        "summary": {
+            "total_users": user_model.objects.count(),
+            "active_users": user_model.objects.filter(is_active=True).count(),
+            "drivers": user_model.objects.filter(role="DRIVER").count(),
+            "operators": user_model.objects.filter(role="OPERATOR").count(),
+            "admins": user_model.objects.filter(role="ADMIN").count(),
+            "total_zones": ParkingZone.objects.count(),
+            "active_zones": ParkingZone.objects.filter(is_active=True).count(),
+            "total_slots": ParkingSlot.objects.count(),
+            "available_slots": slot_counts.get(ParkingSlot.SlotStatus.AVAILABLE, 0),
+            "occupied_slots": slot_counts.get(ParkingSlot.SlotStatus.OCCUPIED, 0),
+            "reserved_slots": slot_counts.get(ParkingSlot.SlotStatus.RESERVED, 0),
+            "maintenance_slots": slot_counts.get(ParkingSlot.SlotStatus.MAINTENANCE, 0),
+            "active_sessions": ParkingSession.objects.filter(
+                status=ParkingSession.SessionStatus.ACTIVE
+            ).count(),
+            "completed_sessions": ParkingSession.objects.filter(
+                status=ParkingSession.SessionStatus.COMPLETED
+            ).count(),
+            "completed_revenue": completed_revenue,
+        },
+        "recent_sessions": ParkingSessionSerializer(
+            recent_sessions, many=True, context={"request": request}
+        ).data,
+        "zones": [
+            {
+                "id": str(zone.id),
+                "name": zone.name,
+                "location": zone.location,
+                "description": zone.description,
+                "is_active": zone.is_active,
+                "slot_count": zone.slot_count,
+                "latitude": str(zone.latitude) if zone.latitude is not None else "",
+                "longitude": str(zone.longitude) if zone.longitude is not None else "",
+            }
+            for zone in zones
+        ],
+    })
+
+
+@api_view(["POST"])
+@permission_classes([IsParkingAdmin])
+def admin_create_zone(request):
+    """Create a parking zone through the administrator workspace."""
+    serializer = ParkingZoneSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    zone = serializer.save(total_slots=0)
+    return Response(ParkingZoneSerializer(zone).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsParkingAdmin])
+def admin_update_zone_coordinates(request, pk):
+    """Set or update a zone's entrance coordinate pair."""
+    unexpected_fields = set(request.data) - {"latitude", "longitude"}
+    if unexpected_fields:
+        raise ValidationError({
+            field: "Only latitude and longitude may be updated here."
+            for field in sorted(unexpected_fields)
+        })
+    if set(request.data) != {"latitude", "longitude"}:
+        raise ValidationError("Provide both latitude and longitude.")
+    zone = get_object_or_404(ParkingZone, pk=pk)
+    serializer = ParkingZoneSerializer(zone, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    zone = serializer.save()
+    return Response(ParkingZoneSerializer(zone).data)
+
+
+@api_view(["PATCH"])
+@permission_classes([IsParkingAdmin])
+def admin_update_zone(request, pk):
+    """Update editable parking-zone details from the admin dashboard."""
+    allowed_fields = {"name", "location", "description", "latitude", "longitude"}
+    unexpected_fields = set(request.data) - allowed_fields
+    if unexpected_fields:
+        raise ValidationError({
+            field: "This field cannot be updated here."
+            for field in sorted(unexpected_fields)
+        })
+    zone = get_object_or_404(ParkingZone, pk=pk)
+    serializer = ParkingZoneSerializer(zone, data=request.data, partial=True)
+    serializer.is_valid(raise_exception=True)
+    zone = serializer.save()
+    return Response(ParkingZoneSerializer(zone).data)
+
+
+@api_view(["POST"])
+@permission_classes([IsParkingAdmin])
+@transaction.atomic
+def admin_create_slot(request):
+    """Create an available parking slot in a selected zone."""
+    unexpected_fields = set(request.data) - {"zone", "slot_number"}
+    if unexpected_fields:
+        raise ValidationError({
+            field: "Unexpected field. Only zone and slot_number may be provided."
+            for field in sorted(unexpected_fields)
+        })
+    serializer = ParkingSlotSerializer(data=request.data, context={"request": request})
+    serializer.is_valid(raise_exception=True)
+    zone = get_object_or_404(
+        ParkingZone.objects.select_for_update(),
+        pk=serializer.validated_data["zone"].pk,
+    )
+    slot = serializer.save(zone=zone)
+    zone.total_slots = zone.slots.count()
+    zone.save(update_fields=["total_slots", "updated_at"])
+    return Response(
+        ParkingSlotSerializer(slot, context={"request": request}).data,
+        status=status.HTTP_201_CREATED,
+    )
+
+
+def _distance_in_meters(latitude_a, longitude_a, latitude_b, longitude_b):
+    earth_radius_meters = 6_371_000
+    lat_a, lat_b = radians(latitude_a), radians(latitude_b)
+    delta_lat = radians(latitude_b - latitude_a)
+    delta_lng = radians(longitude_b - longitude_a)
+    haversine = (
+        sin(delta_lat / 2) ** 2
+        + cos(lat_a) * cos(lat_b) * sin(delta_lng / 2) ** 2
+    )
+    haversine = min(1.0, max(0.0, haversine))
+    return 2 * earth_radius_meters * atan2(sqrt(haversine), sqrt(1 - haversine))
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def nearby_parking(request):
+    """Find available parking near a one-time, unpersisted driver location."""
+    query = NearbyParkingQuerySerializer(data=request.data)
+    query.is_valid(raise_exception=True)
+    latitude = float(query.validated_data["latitude"])
+    longitude = float(query.validated_data["longitude"])
+
+    # Release expired reservations so nearby availability matches slot listings.
+    expire_reservations()
+    zones = ParkingZone.objects.filter(
+        is_active=True,
+        latitude__isnull=False,
+        longitude__isnull=False,
+    ).annotate(
+        available_spaces=Count(
+            "slots",
+            filter=Q(
+                slots__is_active=True,
+                slots__status=ParkingSlot.SlotStatus.AVAILABLE,
+            ),
+        )
+    ).filter(available_spaces__gt=0)
+
+    results = []
+    for zone in zones:
+        distance = _distance_in_meters(
+            latitude,
+            longitude,
+            float(zone.latitude),
+            float(zone.longitude),
+        )
+        results.append({
+            "id": str(zone.id),
+            "name": zone.name,
+            "location": zone.location,
+            "latitude": str(zone.latitude),
+            "longitude": str(zone.longitude),
+            "available_spaces": zone.available_spaces,
+            "distance_meters": round(distance),
+        })
+
+    results.sort(key=lambda item: (item["distance_meters"], -item["available_spaces"], item["name"]))
+    return Response({"results": results[:3]})
 
 
 @api_view(["GET"])

@@ -11,11 +11,14 @@ import ParkingHistory from "../pages/ParkingHistory/ParkingHistory";
 import Profile from "../pages/Profile/Profile";
 import Notifications from "../pages/Notifications/Notifications";
 import OperatorDashboard from "../pages/OperatorDashboard/OperatorDashboard";
+import AdminDashboard from "../pages/AdminDashboard/AdminDashboard";
+import ReportsAnalytics from "../pages/ReportsAnalytics/ReportsAnalytics";
 import NotFound from "../pages/NotFound/NotFound";
 import AuthenticatedLayout from "../layouts/AuthenticatedLayout";
 
 import ProtectedRoute from "./ProtectedRoute";
 import OperatorRoute from "./OperatorRoute";
+import AdminRoute from "./AdminRoute";
 
 export default function AppRoutes() {
   return (
@@ -35,6 +38,14 @@ export default function AppRoutes() {
         <Route
           path="/operator-dashboard"
           element={<OperatorRoute><OperatorDashboard /></OperatorRoute>}
+        />
+        <Route
+          path="/admin-dashboard"
+          element={<AdminRoute><AdminDashboard /></AdminRoute>}
+        />
+        <Route
+          path="/reports-analytics"
+          element={<AdminRoute><ReportsAnalytics /></AdminRoute>}
         />
         <Route path="/parking-history" element={<ParkingHistory />} />
         <Route path="/profile" element={<Profile />} />

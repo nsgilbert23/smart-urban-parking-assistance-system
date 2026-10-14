@@ -6,9 +6,9 @@ import {
   NOTIFICATION_COUNT_EVENT,
 } from "../services/notificationService";
 
-function Brand() {
+function Brand({ isAdmin }) {
   return (
-    <Link to="/dashboard" className="flex shrink-0 items-center gap-3" aria-label="SUPAS home">
+    <Link to={isAdmin ? "/admin-dashboard" : "/dashboard"} className="flex shrink-0 items-center gap-3" aria-label="SUPAS home">
       <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-700 text-lg font-bold text-white shadow-sm">S</span>
       <span className="leading-tight">
         <span className="block text-sm font-extrabold tracking-wide text-slate-900">SUPAS</span>
@@ -22,8 +22,16 @@ export default function AuthenticatedLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
+  const isAdmin = user?.role === "ADMIN";
   const isOperator = ["OPERATOR", "ADMIN"].includes(user?.role);
-  const navItems = isOperator
+  const navItems = isAdmin
+    ? [
+        { to: "/admin-dashboard", label: "Admin dashboard" },
+        { to: "/reports-analytics", label: "Reports & Analytics" },
+        { to: "/operator-dashboard", label: "Operations" },
+        { to: "/notifications", label: "Notifications", badge: true },
+      ]
+    : isOperator
     ? [
         { to: "/operator-dashboard", label: "Operations" },
         { to: "/notifications", label: "Notifications", badge: true },
@@ -66,7 +74,7 @@ export default function AuthenticatedLayout() {
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 shadow-[0_2px_12px_rgba(20,44,58,0.04)] backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:flex-nowrap sm:px-6 lg:px-8">
-          <Brand />
+          <Brand isAdmin={user?.role === "ADMIN"} />
           <nav aria-label="Main navigation" className="order-3 -mx-4 flex w-[calc(100%+2rem)] items-center gap-1 overflow-x-auto px-4 pb-1 sm:order-none sm:mx-0 sm:w-auto sm:overflow-visible sm:px-0 sm:pb-0">
             {navItems.map((item) => (
               <NavLink

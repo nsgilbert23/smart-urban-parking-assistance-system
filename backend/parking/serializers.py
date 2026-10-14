@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from .models import ParkingSession, ParkingSlot, ParkingZone, PricingRule
@@ -30,12 +32,39 @@ class ParkingZoneSerializer(serializers.ModelSerializer):
             "name",
             "location",
             "description",
+            "latitude",
+            "longitude",
             "total_slots",
             "is_active",
             "created_at",
             "updated_at",
         )
         read_only_fields = ("id", "created_at", "updated_at")
+
+    def validate(self, attrs):
+        instance = self.instance
+        latitude = attrs.get("latitude", getattr(instance, "latitude", None))
+        longitude = attrs.get("longitude", getattr(instance, "longitude", None))
+        if (latitude is None) != (longitude is None):
+            raise serializers.ValidationError(
+                "Provide both entrance latitude and longitude, or leave both blank."
+            )
+        return attrs
+
+
+class NearbyParkingQuerySerializer(serializers.Serializer):
+    latitude = serializers.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        min_value=Decimal("-90"),
+        max_value=Decimal("90"),
+    )
+    longitude = serializers.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        min_value=Decimal("-180"),
+        max_value=Decimal("180"),
+    )
 
 
 class ParkingSlotSerializer(serializers.ModelSerializer):
