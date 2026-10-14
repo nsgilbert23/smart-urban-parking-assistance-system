@@ -37,14 +37,14 @@ export default function ParkingSessions() {
   }, []);
 
   function formatDate(date) {
-    if (!date) return "-";
+    if (!date) return "Not recorded";
 
     return new Date(date).toLocaleString();
   }
 
   function formatCost(cost) {
     if (cost === null || cost === undefined) {
-      return "0.00";
+      return "Not recorded";
     }
 
     return Number(cost).toFixed(2);
@@ -52,10 +52,10 @@ export default function ParkingSessions() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100 p-8">
+      <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="rounded-xl bg-white p-10 text-center shadow">
-            <p className="text-gray-500">
+          <div className="surface-card p-10 text-center">
+            <p className="text-slate-500" role="status">
               Loading parking sessions...
             </p>
           </div>
@@ -65,17 +65,18 @@ export default function ParkingSessions() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-slate-50 px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <p className="eyebrow">Driver workspace</p>
+          <h1 className="page-title mt-2">
             Parking Sessions
           </h1>
 
-          <p className="mt-2 text-gray-600">
-            View and manage your parking sessions.
+          <p className="page-description mt-2">
+            Monitor active parking and review your session details.
           </p>
         </div>
 
@@ -88,7 +89,7 @@ export default function ParkingSessions() {
 
         {/* No sessions */}
         {!error && sessions.length === 0 && (
-          <div className="rounded-xl bg-white p-10 text-center shadow">
+          <div className="surface-card p-10 text-center">
             <div className="text-5xl">🅿️</div>
 
             <h2 className="mt-4 text-2xl font-semibold text-gray-900">
@@ -105,9 +106,9 @@ export default function ParkingSessions() {
         {sessions.length > 0 && (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {sessions.map((session) => (
-              <div
+              <article
                 key={session.id}
-                className="rounded-xl bg-white p-6 shadow transition hover:shadow-lg"
+                className="surface-card p-6"
               >
                 {/* Status */}
                 <div className="flex items-center justify-between">
@@ -203,7 +204,9 @@ export default function ParkingSessions() {
                     <p className="font-semibold">
                       {session.status === "ACTIVE"
                         ? `${Math.max(0, Math.ceil((now - new Date(session.start_time).getTime()) / 60000))} minutes (elapsed)`
-                        : `${session.duration_minutes ?? 0} minutes`}
+                        : session.duration_minutes == null
+                          ? "Not recorded"
+                          : `${session.duration_minutes} minutes`}
                     </p>
                   </div>
 
@@ -215,7 +218,9 @@ export default function ParkingSessions() {
                     <p className="text-2xl font-bold text-green-600">
                       {session.status === "ACTIVE"
                         ? `${formatCost(Math.max(0, Math.ceil((now - new Date(session.start_time).getTime()) / 60000) - (session.grace_period_minutes || 0)) * Number(session.cost_per_hour || 0) / 60)} RWF (estimated)`
-                        : `${formatCost(session.total_cost)} RWF`}
+                        : session.total_cost == null
+                          ? "Not recorded"
+                          : `${formatCost(session.total_cost)} RWF`}
                     </p>
                   </div>
 
@@ -226,7 +231,7 @@ export default function ParkingSessions() {
                   )}
 
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}

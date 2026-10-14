@@ -37,6 +37,7 @@ def health_check(request):
                 "parking_slots": "/api/parking-slots/",
                 "pricing_rules": "/api/pricing-rules/",
                 "parking_sessions": "/api/parking-sessions/",
+                "operator_dashboard": "/api/operator/dashboard/",
             },
         }
     )
@@ -57,4 +58,7 @@ urlpatterns = [
 
     # Parking
     path("api/", include("parking.urls")),
+
+    # In-app notifications
+    path("api/notifications/", include("notifications.urls")),
 ]

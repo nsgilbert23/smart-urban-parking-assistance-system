@@ -27,6 +27,7 @@ export default function Parking() {
   const [starting, setStarting] = useState(false);
 
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [now, setNow] = useState(Date.now());
   const [expiredNotice, setExpiredNotice] = useState(false);
   const refreshedExpiryIds = useRef(new Set());
@@ -64,8 +65,11 @@ export default function Parking() {
 
   async function cancelReservation(slotId) {
     try {
+      setError("");
+      setSuccess("");
       await cancelParkingReservation(slotId);
       setSlots(await getParkingSlots());
+      setSuccess("Reservation cancelled.");
     } catch (err) {
       const message = err.response?.data
         ? Object.values(err.response.data).flat().join(" ")
@@ -194,6 +198,7 @@ export default function Parking() {
     event.preventDefault();
 
     setError("");
+    setSuccess("");
 
     if (!selectedZone) {
       setError("Please select a parking zone.");
@@ -239,7 +244,7 @@ export default function Parking() {
         status: "ACTIVE",
       });
 
-      alert("Parking reserved. Your session and timer will start when the parking sensor detects your vehicle.");
+      setSuccess("Parking is reserved. Your session starts when the parking sensor detects your vehicle.");
 
       // Reset selections
       setSelectedSlot("");
@@ -290,13 +295,14 @@ export default function Parking() {
   // ==========================================
 
   return (
-    <div className="min-h-screen bg-gray-100 p-8">
+    <div className="min-h-screen bg-gray-100 px-4 py-8 sm:px-6 lg:px-8">
 
       <div className="mx-auto max-w-7xl">
 
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900">
+          <p className="eyebrow">Driver workspace</p>
+          <h1 className="page-title mt-2">
             Find Parking
           </h1>
 
@@ -308,10 +314,12 @@ export default function Parking() {
 
         {/* Error */}
         {error && (
-          <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700">
+          <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 text-red-800" role="alert">
             {error}
           </div>
         )}
+
+        {success && <div className="mb-6 rounded-xl border border-green-200 bg-green-50 p-4 text-green-800" role="status">{success}</div>}
 
         {expiredNotice && (
           <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-900" role="status">

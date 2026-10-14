@@ -6,6 +6,8 @@ from .views import (
     ParkingSlotViewSet,
     ParkingZoneViewSet,
     PricingRuleViewSet,
+    operator_dashboard,
+    operator_update_slot_status,
     sensor_event,
 )
 
@@ -18,5 +20,11 @@ router.register("parking-sessions", ParkingSessionViewSet, basename="parking-ses
 
 urlpatterns = [
     path("sensor-events/", sensor_event, name="sensor-event"),
+    path("operator/dashboard/", operator_dashboard, name="operator-dashboard"),
+    path(
+        "operator/slots/<uuid:pk>/status/",
+        operator_update_slot_status,
+        name="operator-slot-status",
+    ),
     path("", include(router.urls)),
 ]

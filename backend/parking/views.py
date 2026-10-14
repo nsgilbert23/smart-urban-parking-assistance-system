@@ -1,6 +1,8 @@
 from django.db import transaction
+from django.db.models import Count
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework import serializers, status, viewsets
+from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import (
     api_view,
     authentication_classes,
@@ -13,10 +15,118 @@ from rest_framework.response import Response
 from .authentication import IsParkingSensor, ParkingSensorAuthentication
 from .models import ParkingSession, ParkingSlot, ParkingZone, PricingRule
 from .serializers import (
-    ParkingSessionSerializer, ParkingSlotSerializer,
+    OperatorSlotStatusSerializer, ParkingSessionSerializer, ParkingSlotSerializer,
     ParkingZoneSerializer, PricingRuleSerializer,
 )
 from .reservations import expire_reservations, reservation_expiration
+
+
+class IsParkingOperator(permissions.BasePermission):
+    message = "An operator account is required to access this resource."
+
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(
+            user
+            and user.is_authenticated
+            and getattr(user, "role", "") in {"OPERATOR", "ADMIN"}
+        )
+
+
+@api_view(["GET"])
+@permission_classes([IsParkingOperator])
+def operator_dashboard(request):
+    """Return the live parking overview for an operator or administrator."""
+    expire_reservations()
+    slots = list(
+        ParkingSlot.objects.select_related("zone", "reserved_vehicle")
+        .order_by("zone__name", "slot_number")
+    )
+    slot_counts = {
+        item["status"]: item["count"]
+        for item in ParkingSlot.objects.values("status").annotate(count=Count("id"))
+    }
+    zones = ParkingZone.objects.annotate(slot_count=Count("slots")).order_by("name")
+    active_sessions = ParkingSession.objects.filter(
+        status=ParkingSession.SessionStatus.ACTIVE
+    ).select_related("vehicle", "slot__zone", "pricing_rule").order_by("start_time")
+
+    return Response({
+        "summary": {
+            "total_slots": len(slots),
+            "available_slots": slot_counts.get(ParkingSlot.SlotStatus.AVAILABLE, 0),
+            "occupied_slots": slot_counts.get(ParkingSlot.SlotStatus.OCCUPIED, 0),
+            "reserved_slots": slot_counts.get(ParkingSlot.SlotStatus.RESERVED, 0),
+            "maintenance_slots": slot_counts.get(ParkingSlot.SlotStatus.MAINTENANCE, 0),
+            "active_sessions": active_sessions.count(),
+        },
+        "zones": [
+            {
+                "id": str(zone.id),
+                "name": zone.name,
+                "location": zone.location,
+                "is_active": zone.is_active,
+                "slot_count": zone.slot_count,
+            }
+            for zone in zones
+        ],
+        "slots": [
+            {
+                "id": str(slot.id),
+                "zone_id": str(slot.zone_id),
+                "zone_name": slot.zone.name,
+                "slot_number": slot.slot_number,
+                "status": slot.status,
+                "is_active": slot.is_active,
+                "reserved_vehicle_plate_number": (
+                    slot.reserved_vehicle.plate_number if slot.reserved_vehicle_id else None
+                ),
+                "reservation_expires_at": slot.reservation_expires_at,
+            }
+            for slot in slots
+        ],
+        "active_sessions": ParkingSessionSerializer(
+            active_sessions, many=True, context={"request": request}
+        ).data,
+    })
+
+
+@api_view(["PATCH"])
+@permission_classes([IsParkingOperator])
+@transaction.atomic
+def operator_update_slot_status(request, pk):
+    """Allow operators to switch between available and maintenance only."""
+    slot = get_object_or_404(
+        ParkingSlot.objects.select_for_update().select_related("zone"), pk=pk
+    )
+    serializer = OperatorSlotStatusSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    new_status = serializer.validated_data["status"]
+
+    if slot.status not in {
+        ParkingSlot.SlotStatus.AVAILABLE,
+        ParkingSlot.SlotStatus.MAINTENANCE,
+    }:
+        raise ValidationError({
+            "status": "Occupied and reserved slots are managed by sensors and reservations."
+        })
+
+    if slot.reserved_vehicle_id or ParkingSession.objects.filter(
+        slot=slot, status=ParkingSession.SessionStatus.ACTIVE
+    ).exists():
+        raise ValidationError({
+            "status": "A slot with a reservation or active session cannot be changed."
+        })
+
+    if new_status != slot.status:
+        slot.status = new_status
+        slot.save(update_fields=["status", "updated_at"])
+    return Response({
+        "id": str(slot.id),
+        "zone_name": slot.zone.name,
+        "slot_number": slot.slot_number,
+        "status": slot.status,
+    })
 
 
 @api_view(["POST"])

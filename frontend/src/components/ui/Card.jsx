@@ -1,15 +1,7 @@
-export default function Card({ children, className = "" }) {
+export default function Card({ children, className = "", interactive = false }) {
   return (
     <div
-      className={`
-        rounded-xl
-        bg-white
-        p-6
-        shadow-sm
-        transition
-        hover:shadow-lg
-        ${className}
-      `}
+      className={`surface-card p-6 ${interactive ? "transition duration-200 hover:-translate-y-0.5 hover:shadow-lg" : ""} ${className}`}
     >
       {children}
     </div>

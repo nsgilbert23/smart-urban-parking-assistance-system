@@ -3,6 +3,25 @@ from rest_framework import serializers
 from .models import ParkingSession, ParkingSlot, ParkingZone, PricingRule
 
 
+class OperatorSlotStatusSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=(
+            ParkingSlot.SlotStatus.AVAILABLE,
+            ParkingSlot.SlotStatus.MAINTENANCE,
+        )
+    )
+
+    def to_internal_value(self, data):
+        values = super().to_internal_value(data)
+        unknown_fields = set(data) - {"status"}
+        if unknown_fields:
+            raise serializers.ValidationError({
+                field: "Unexpected field. Only status may be updated."
+                for field in sorted(unknown_fields)
+            })
+        return values
+
+
 class ParkingZoneSerializer(serializers.ModelSerializer):
     class Meta:
         model = ParkingZone

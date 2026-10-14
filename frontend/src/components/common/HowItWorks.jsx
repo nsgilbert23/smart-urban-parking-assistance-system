@@ -11,46 +11,47 @@ const steps = [
   },
   {
     number: "03",
-    title: "Park Your Vehicle",
-    description: "Occupy the selected parking slot and start your parking session.",
+    title: "Arrive and park",
+    description: "The slot sensor confirms arrival and starts the parking session.",
   },
   {
     number: "04",
-    title: "Pay & Leave",
-    description: "The system calculates your parking fee automatically.",
+    title: "Leave when ready",
+    description: "The slot sensor records departure and completes the session.",
   },
 ];
 
 export default function HowItWorks() {
   return (
-    <section id="how" className="bg-slate-50 py-24">
-      <div className="mx-auto max-w-7xl px-6">
+    <section id="how" className="bg-slate-50 py-20 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-        <div className="mb-20 text-center">
-          <h2 className="text-4xl font-bold">
+        <div className="mb-12 max-w-2xl">
+          <p className="eyebrow">How it works</p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
             How It Works
           </h2>
 
-          <p className="mt-4 text-lg text-gray-600">
-            Parking has never been this simple.
+          <p className="mt-4 text-lg leading-7 text-slate-600">
+            A straightforward path from finding a space to completing your session.
           </p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {steps.map((step) => (
             <div
               key={step.number}
-              className="rounded-xl bg-white p-8 text-center shadow-sm"
+              className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
             >
-              <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-2xl font-bold text-white">
+              <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50 text-sm font-bold text-teal-800">
                 {step.number}
               </div>
 
-              <h3 className="mb-4 text-xl font-bold">
+              <h3 className="mb-2 text-lg font-bold text-slate-900">
                 {step.title}
               </h3>
 
-              <p className="text-gray-600">
+              <p className="text-sm leading-6 text-slate-600">
                 {step.description}
               </p>
             </div>

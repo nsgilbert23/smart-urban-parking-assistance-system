@@ -1,56 +1,39 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
-import Button from "../ui/Button";
-
 export default function Navbar() {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navigation = [
+    ["#features", "Platform"],
+    ["#how", "How it works"],
+    ["#contact", "About"],
+  ];
+
   return (
-    <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-6">
+    <header className="sticky top-0 z-50 border-b border-slate-200 bg-white/95 backdrop-blur">
+      <div className="mx-auto flex min-h-18 max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-xl font-bold text-white shadow">
-            P
-          </div>
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-teal-700 text-lg font-bold text-white shadow-sm">S</span>
 
           <div>
-            <h1 className="text-xl font-bold text-slate-800">
-              SUPAS
-            </h1>
-
-            <p className="text-xs text-gray-500">
-              Smart Urban Parking
-            </p>
+            <span className="block text-sm font-extrabold tracking-wide text-slate-900">SUPAS</span>
+            <span className="text-xs text-slate-500">Smart Urban Parking</span>
           </div>
         </Link>
 
-        <nav className="hidden gap-8 font-medium md:flex">
-          <a href="#home" className="hover:text-blue-600">
-            Home
-          </a>
-
-          <a href="#features" className="hover:text-blue-600">
-            Features
-          </a>
-
-          <a href="#how" className="hover:text-blue-600">
-            How It Works
-          </a>
-
-          <a href="#contact" className="hover:text-blue-600">
-            Contact
-          </a>
+        <nav aria-label="Main navigation" className={`${menuOpen ? "flex" : "hidden"} order-3 w-full flex-col gap-1 border-t border-slate-100 pt-3 sm:order-none sm:flex sm:w-auto sm:flex-row sm:border-0 sm:pt-0`}>
+          {navigation.map(([href, label]) => (
+            <a key={href} href={href} onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 hover:text-teal-800">
+              {label}
+            </a>
+          ))}
         </nav>
 
-        <div className="flex gap-3">
-          <Link to="/login">
-            <Button variant="secondary">
-              Login
-            </Button>
-          </Link>
-
-          <Link to="/register">
-            <Button>
-              Get Started
-            </Button>
-          </Link>
+        <div className="flex items-center gap-2">
+          <Link to="/login" className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Sign in</Link>
+          <Link to="/register" className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Create account</Link>
+          <button type="button" aria-label={menuOpen ? "Close navigation" : "Open navigation"} aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)} className="flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 sm:hidden">
+            <span aria-hidden="true">{menuOpen ? "×" : "☰"}</span>
+          </button>
         </div>
       </div>
     </header>

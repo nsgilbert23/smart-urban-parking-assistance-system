@@ -103,93 +103,122 @@ export default function Profile() {
 
   if (loading) {
     return (
-      <main className="flex min-h-[60vh] items-center justify-center bg-gray-100 px-4" aria-busy="true">
-        <p className="text-gray-600" role="status">Loading your profile…</p>
+      <main className="flex min-h-[60vh] items-center justify-center px-4" aria-busy="true">
+        <div className="surface-card flex items-center gap-3 px-6 py-5">
+          <span className="h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-teal-700" aria-hidden="true" />
+          <p className="text-slate-600" role="status">Loading your profile...</p>
+        </div>
       </main>
     );
   }
 
   if (!profile) {
     return (
-      <main className="min-h-[60vh] bg-gray-100 px-4 py-12">
-        <div className="mx-auto max-w-3xl rounded-xl bg-white p-6 shadow" role="alert">
-          <h1 className="text-2xl font-bold text-gray-900">Profile unavailable</h1>
+      <main className="min-h-[60vh] px-4 py-12 sm:px-6">
+        <div className="surface-card mx-auto max-w-3xl p-6 sm:p-8" role="alert">
+          <p className="eyebrow">Account</p>
+          <h1 className="page-title mt-2">Profile unavailable</h1>
           <p className="mt-3 text-red-700">{apiError}</p>
-          <Link className="mt-5 inline-block font-semibold text-blue-700 hover:underline" to="/dashboard">Return to dashboard</Link>
+          <Link className="mt-6 inline-flex rounded-lg bg-slate-900 px-4 py-2.5 font-semibold text-white hover:bg-slate-800" to="/dashboard">Return to dashboard</Link>
         </div>
       </main>
     );
   }
 
+  const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "Driver account";
+  const initials = [profile.first_name, profile.last_name].filter(Boolean).map((name) => name[0]).join("").slice(0, 2).toUpperCase() || "D";
+  const roleLabel = profile.role ? profile.role.toLowerCase().replace(/\b\w/g, (letter) => letter.toUpperCase()) : "Driver";
+
   return (
-    <main className="min-h-[calc(100vh-4rem)] bg-gray-100 px-4 py-8 sm:px-6 lg:py-12">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-6">
-          <Link to="/dashboard" className="text-sm font-semibold text-blue-700 hover:underline">← Dashboard</Link>
-          <h1 className="mt-4 text-3xl font-bold text-gray-900">Driver Profile</h1>
-          <p className="mt-2 text-gray-600">Review and update your contact details.</p>
+    <main className="min-h-[calc(100vh-4rem)] px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-7 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm font-semibold text-teal-800 hover:text-teal-950">&larr; Dashboard</Link>
+            <p className="eyebrow mt-6">Account settings</p>
+            <h1 className="page-title mt-2">Driver profile</h1>
+            <p className="page-description">Manage the contact details associated with your parking account.</p>
+          </div>
+          <span className="inline-flex w-fit items-center gap-2 rounded-full border border-teal-200 bg-teal-50 px-3 py-1.5 text-sm font-semibold text-teal-900">
+            <span className="h-2 w-2 rounded-full bg-teal-600" aria-hidden="true" />{roleLabel} account
+          </span>
         </div>
 
-        <section className="rounded-2xl bg-white p-5 shadow-sm sm:p-8" aria-labelledby="profile-details-heading">
-          <div className="flex flex-col justify-between gap-4 border-b border-gray-200 pb-6 sm:flex-row sm:items-center">
-            <div>
-              <p className="text-sm font-medium text-gray-500">Signed in as</p>
-              <h2 className="mt-1 text-xl font-semibold text-gray-900">{profile.first_name} {profile.last_name}</h2>
-              <p className="mt-1 break-all text-gray-600">{profile.email}</p>
+        <div className="grid gap-5 lg:grid-cols-[0.8fr_1.4fr]">
+          <aside className="surface-card overflow-hidden" aria-label="Account overview">
+            <div className="h-2 bg-gradient-to-r from-teal-700 via-teal-500 to-sky-400" />
+            <div className="p-6 sm:p-7">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-xl font-bold tracking-wide text-white shadow-sm" aria-hidden="true">{initials}</div>
+              <p className="mt-6 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Signed in as</p>
+              <h2 className="mt-2 break-words text-xl font-bold tracking-tight text-slate-950">{fullName}</h2>
+              <p className="mt-2 break-all text-sm leading-6 text-slate-600">{profile.email}</p>
+              <div className="mt-6 border-t border-slate-100 pt-5">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Account type</p>
+                <p className="mt-1 font-semibold text-slate-900">{roleLabel}</p>
+              </div>
+              <p className="mt-5 text-sm leading-6 text-slate-500">Your profile details help keep your parking account up to date.</p>
             </div>
-            <span className="w-fit rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-800">{profile.role}</span>
-          </div>
+          </aside>
 
-          <div className="mt-6 flex items-center justify-between gap-3">
-            <h2 id="profile-details-heading" className="text-lg font-semibold text-gray-900">Contact details</h2>
-            {!editing && (
-              <button type="button" onClick={beginEditing} className="rounded-lg border border-blue-700 px-4 py-2 font-semibold text-blue-700 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Edit profile</button>
-            )}
-          </div>
-
-          {success && <p className="mt-4 rounded-lg bg-green-50 p-3 text-sm text-green-800" role="status">{success}</p>}
-          {apiError && <p className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-800" role="alert">{apiError}</p>}
-
-          {editing ? (
-            <form className="mt-5 space-y-5" onSubmit={handleSubmit} noValidate>
-              {editableFields.map(({ name, label, autoComplete }) => (
-                <div key={name}>
-                  <label htmlFor={name} className="mb-2 block text-sm font-medium text-gray-700">{label}</label>
-                  <input
-                    id={name}
-                    name={name}
-                    type="text"
-                    autoComplete={autoComplete}
-                    maxLength={name === "phone_number" ? 20 : 150}
-                    required={name !== "phone_number"}
-                    value={form[name]}
-                    onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))}
-                    aria-invalid={Boolean(errors[name])}
-                    aria-describedby={errors[name] ? `${name}-error` : undefined}
-                    className={`w-full rounded-lg border px-4 py-3 outline-none focus:ring-2 ${errors[name] ? "border-red-500 focus:ring-red-200" : "border-gray-300 focus:border-blue-500 focus:ring-blue-200"}`}
-                  />
-                  {errors[name] && <p id={`${name}-error`} className="mt-1 text-sm text-red-700">{errors[name]}</p>}
-                </div>
-              ))}
+          <section className="surface-card p-5 sm:p-7" aria-labelledby="profile-details-heading">
+            <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <label htmlFor="email" className="mb-2 block text-sm font-medium text-gray-700">Email address</label>
-                <input id="email" type="email" value={profile.email} disabled className="w-full rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-gray-500" />
-                <p className="mt-1 text-sm text-gray-500">Email is managed by your sign-in account.</p>
+                <h2 id="profile-details-heading" className="text-lg font-bold text-slate-950">Personal details</h2>
+                <p className="mt-1 text-sm text-slate-500">Your name and phone number are visible here.</p>
               </div>
-              <div className="flex flex-col-reverse gap-3 border-t border-gray-200 pt-5 sm:flex-row sm:justify-end">
-                <button type="button" onClick={cancelEditing} disabled={saving} className="rounded-lg border border-gray-300 px-5 py-3 font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60">Cancel</button>
-                <button type="submit" disabled={saving} className="rounded-lg bg-blue-700 px-5 py-3 font-semibold text-white hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-wait disabled:opacity-60">{saving ? "Saving…" : "Save changes"}</button>
-              </div>
-            </form>
-          ) : (
-            <dl className="mt-5 grid gap-5 sm:grid-cols-2">
-              <div><dt className="text-sm font-medium text-gray-500">First name</dt><dd className="mt-1 break-words text-gray-900">{profile.first_name}</dd></div>
-              <div><dt className="text-sm font-medium text-gray-500">Last name</dt><dd className="mt-1 break-words text-gray-900">{profile.last_name}</dd></div>
-              <div><dt className="text-sm font-medium text-gray-500">Phone number</dt><dd className="mt-1 break-words text-gray-900">{profile.phone_number || "Not provided"}</dd></div>
-              <div><dt className="text-sm font-medium text-gray-500">Email address</dt><dd className="mt-1 break-all text-gray-900">{profile.email}</dd></div>
-            </dl>
-          )}
-        </section>
+              {!editing && (
+                <button type="button" onClick={beginEditing} className="inline-flex w-fit items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-teal-600 hover:bg-teal-50 hover:text-teal-900 focus-visible:ring-2 focus-visible:ring-teal-600">
+                  Edit profile
+                </button>
+              )}
+            </div>
+
+            {success && <p className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900" role="status">{success}</p>}
+            {apiError && <p className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{apiError}</p>}
+
+            {editing ? (
+              <form className="mt-6 space-y-5" onSubmit={handleSubmit}>
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {editableFields.map(({ name, label, autoComplete }) => (
+                    <div key={name} className={name === "phone_number" ? "sm:col-span-2" : ""}>
+                      <label htmlFor={name} className="mb-2 block text-sm font-semibold text-slate-700">{label}{name !== "phone_number" && <span className="ml-1 text-red-600" aria-hidden="true">*</span>}</label>
+                      <input
+                        id={name}
+                        name={name}
+                        type={name === "phone_number" ? "tel" : "text"}
+                        autoComplete={autoComplete}
+                        maxLength={name === "phone_number" ? 20 : 150}
+                        required={name !== "phone_number"}
+                        value={form[name]}
+                        onChange={(event) => setForm((current) => ({ ...current, [name]: event.target.value }))}
+                        aria-invalid={Boolean(errors[name])}
+                        aria-describedby={errors[name] ? `${name}-error` : undefined}
+                        className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 ${errors[name] ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-300 focus:border-teal-600 focus:ring-teal-100"}`}
+                      />
+                      {errors[name] && <p id={`${name}-error`} className="mt-1.5 text-sm text-red-700">{errors[name]}</p>}
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <label htmlFor="profile-email" className="mb-2 block text-sm font-semibold text-slate-700">Email address</label>
+                  <input id="profile-email" type="email" value={profile.email} disabled className="w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-500" />
+                  <p className="mt-2 text-xs leading-5 text-slate-500">Email is used for sign-in and cannot be changed here.</p>
+                </div>
+                <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:justify-end">
+                  <button type="button" onClick={cancelEditing} disabled={saving} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-teal-600 disabled:opacity-60">Cancel</button>
+                  <button type="submit" disabled={saving} className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60">{saving ? "Saving..." : "Save changes"}</button>
+                </div>
+              </form>
+            ) : (
+              <dl className="mt-2 divide-y divide-slate-100">
+                <div className="grid gap-1 py-5 sm:grid-cols-[minmax(9rem,0.7fr)_1.3fr] sm:items-center sm:gap-4"><dt className="text-sm font-medium text-slate-500">First name</dt><dd className="break-words font-semibold text-slate-900">{profile.first_name || "Not provided"}</dd></div>
+                <div className="grid gap-1 py-5 sm:grid-cols-[minmax(9rem,0.7fr)_1.3fr] sm:items-center sm:gap-4"><dt className="text-sm font-medium text-slate-500">Last name</dt><dd className="break-words font-semibold text-slate-900">{profile.last_name || "Not provided"}</dd></div>
+                <div className="grid gap-1 py-5 sm:grid-cols-[minmax(9rem,0.7fr)_1.3fr] sm:items-center sm:gap-4"><dt className="text-sm font-medium text-slate-500">Phone number</dt><dd className="break-words font-semibold text-slate-900">{profile.phone_number || "Not provided"}</dd></div>
+                <div className="grid gap-1 py-5 sm:grid-cols-[minmax(9rem,0.7fr)_1.3fr] sm:items-center sm:gap-4"><dt className="text-sm font-medium text-slate-500">Email address</dt><dd className="break-all font-semibold text-slate-900">{profile.email}</dd></div>
+              </dl>
+            )}
+          </section>
+        </div>
       </div>
     </main>
   );

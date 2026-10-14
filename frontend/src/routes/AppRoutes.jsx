@@ -9,9 +9,13 @@ import Parking from "../pages/Parking/Parking";
 import ParkingSessions from "../pages/ParkingSessions/ParkingSessions";
 import ParkingHistory from "../pages/ParkingHistory/ParkingHistory";
 import Profile from "../pages/Profile/Profile";
+import Notifications from "../pages/Notifications/Notifications";
+import OperatorDashboard from "../pages/OperatorDashboard/OperatorDashboard";
 import NotFound from "../pages/NotFound/NotFound";
+import AuthenticatedLayout from "../layouts/AuthenticatedLayout";
 
 import ProtectedRoute from "./ProtectedRoute";
+import OperatorRoute from "./OperatorRoute";
 
 export default function AppRoutes() {
   return (
@@ -23,59 +27,19 @@ export default function AppRoutes() {
 
       <Route path="/register" element={<Register />} />
 
-      <Route
-        path="/dashboard"
-        element={
-          <ProtectedRoute>
-            <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/vehicles"
-        element={
-          <ProtectedRoute>
-            <Vehicles />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/parking"
-        element={
-          <ProtectedRoute>
-            <Parking />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/parking-sessions"
-        element={
-          <ProtectedRoute>
-            <ParkingSessions />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/parking-history"
-        element={
-          <ProtectedRoute>
-            <ParkingHistory />
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        }
-      />
+      <Route element={<ProtectedRoute><AuthenticatedLayout /></ProtectedRoute>}>
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/vehicles" element={<Vehicles />} />
+        <Route path="/parking" element={<Parking />} />
+        <Route path="/parking-sessions" element={<ParkingSessions />} />
+        <Route
+          path="/operator-dashboard"
+          element={<OperatorRoute><OperatorDashboard /></OperatorRoute>}
+        />
+        <Route path="/parking-history" element={<ParkingHistory />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/notifications" element={<Notifications />} />
+      </Route>
 
       <Route path="*" element={<NotFound />} />
 

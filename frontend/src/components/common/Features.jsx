@@ -2,61 +2,62 @@ import Card from "../ui/Card";
 
 const features = [
   {
-    icon: "P",
-    title: "Real-Time Parking Detection",
+    icon: "01",
+    title: "Live slot visibility",
     description:
-      "Instantly view available parking spaces without driving around the city.",
+      "Review available, reserved, occupied, and maintenance spaces before you set out.",
   },
   {
-    icon: "Map",
-    title: "Interactive Parking Map",
+    icon: "02",
+    title: "Simple reservations",
     description:
-      "Locate the nearest available parking space with directions to your destination.",
+      "Choose a zone, vehicle, and available slot through a clear reservation flow.",
   },
   {
-    icon: "Bell",
-    title: "Smart Notifications",
+    icon: "03",
+    title: "Session visibility",
     description:
-      "Receive reminders before your parking time expires and extend your session if needed.",
+      "See active sessions and review recorded duration and cost in your account.",
   },
   {
-    icon: "Pay",
-    title: "Automatic Billing",
+    icon: "04",
+    title: "Operator workspace",
     description:
-      "Parking fees are calculated automatically based on the selected pricing rule.",
+      "Give parking teams a focused view of occupancy, slots, and active sessions.",
   },
 ];
 
 export default function Features() {
   return (
-    <section id="features" className="bg-white py-24">
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="mb-16 text-center">
-          <h2 className="text-4xl font-bold text-slate-900">
-            Why Choose SUPAS?
+    <section id="features" className="bg-white py-20 sm:py-24">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-12 max-w-2xl">
+          <p className="eyebrow">A connected platform</p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
+            Designed for the full parking journey
           </h2>
 
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-600">
-            We combine smart technology, automation, and user-friendly design
-            to make urban parking easier and more efficient.
+          <p className="mt-4 text-base leading-7 text-slate-600 sm:text-lg">
+            Drivers and parking teams share a clearer view of availability, reservations, and sessions.
           </p>
         </div>
 
-        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           {features.map((feature) => (
             <Card
               key={feature.title}
-              className="text-center hover:-translate-y-2"
+              interactive
+              className="border-slate-200 p-6 hover:border-teal-200"
             >
-              <div className="mb-5 text-3xl font-bold text-blue-600">
+              <div className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl bg-teal-50 text-xs font-bold tracking-wide text-teal-800">
                 {feature.icon}
               </div>
 
-              <h3 className="mb-4 text-xl font-bold">
+              <h3 className="mb-2 text-lg font-bold text-slate-900">
                 {feature.title}
               </h3>
 
-              <p className="text-gray-600">
+              <p className="text-sm leading-6 text-slate-600">
                 {feature.description}
               </p>
             </Card>

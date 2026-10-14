@@ -11,6 +11,8 @@ export default function Vehicles() {
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   const [showForm, setShowForm] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState(null);
@@ -34,8 +36,7 @@ export default function Vehicles() {
       setVehicles(data);
     } catch (error) {
       console.error("Failed to load vehicles:", error);
-
-      alert("Failed to load vehicles.");
+      setError("Vehicles could not be loaded. Please refresh and try again.");
     } finally {
       setLoading(false);
     }
@@ -48,6 +49,8 @@ export default function Vehicles() {
   async function handleCreateVehicle(vehicle) {
     try {
       setSaving(true);
+      setError("");
+      setSuccess("");
 
       await createVehicle(vehicle);
 
@@ -56,7 +59,7 @@ export default function Vehicles() {
       setShowForm(false);
       setEditingVehicle(null);
 
-      alert("Vehicle registered successfully!");
+      setSuccess("Vehicle registered successfully.");
     } catch (error) {
       console.error("Failed to create vehicle:", error);
 
@@ -64,7 +67,7 @@ export default function Vehicles() {
         console.error("Server response:", error.response.data);
       }
 
-      alert("Failed to register vehicle.");
+      setError("Vehicle could not be registered. Check the details and try again.");
     } finally {
       setSaving(false);
     }
@@ -96,6 +99,8 @@ export default function Vehicles() {
 
     try {
       setSaving(true);
+      setError("");
+      setSuccess("");
 
       await updateVehicle(
         editingVehicle.id,
@@ -107,7 +112,7 @@ export default function Vehicles() {
       setEditingVehicle(null);
       setShowForm(false);
 
-      alert("Vehicle updated successfully!");
+      setSuccess("Vehicle updated successfully.");
     } catch (error) {
       console.error("Failed to update vehicle:", error);
 
@@ -118,7 +123,7 @@ export default function Vehicles() {
         );
       }
 
-      alert("Failed to update vehicle.");
+      setError("Vehicle could not be updated. Check the details and try again.");
     } finally {
       setSaving(false);
     }
@@ -138,6 +143,8 @@ export default function Vehicles() {
     }
 
     try {
+      setError("");
+      setSuccess("");
       await deleteVehicle(id);
 
       await loadVehicles();
@@ -149,7 +156,7 @@ export default function Vehicles() {
         setShowForm(false);
       }
 
-      alert("Vehicle deleted successfully.");
+      setSuccess("Vehicle deleted successfully.");
     } catch (error) {
       console.error("Failed to delete vehicle:", error);
 
@@ -160,7 +167,7 @@ export default function Vehicles() {
         );
       }
 
-      alert("Failed to delete vehicle.");
+      setError("Vehicle could not be deleted. Please try again.");
     }
   }
 
@@ -209,7 +216,7 @@ export default function Vehicles() {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <div className="mx-auto max-w-7xl p-8">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
 
         {/* =========================
             HEADER
@@ -248,6 +255,9 @@ export default function Vehicles() {
               : "+ Add Vehicle"}
           </button>
         </div>
+
+        {error && <p className="mb-5 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800" role="alert">{error}</p>}
+        {success && <p className="mb-5 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800" role="status">{success}</p>}
 
         {/* =========================
             VEHICLE FORM

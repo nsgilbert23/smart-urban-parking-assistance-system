@@ -1,21 +1,19 @@
+import { Link } from "react-router-dom";
+
 export default function Footer() {
   return (
-    <footer id="contact" className="bg-slate-900 py-12 text-white">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 px-6 md:flex-row">
+    <footer id="contact" className="border-t border-white/10 bg-slate-950 py-10 text-white">
+      <div className="mx-auto flex max-w-7xl flex-col gap-7 px-4 sm:px-6 md:flex-row md:items-end md:justify-between lg:px-8">
         <div>
-          <h2 className="text-2xl font-bold">
-            SUPAS
-          </h2>
-
-          <p className="mt-2 text-gray-400">
-            Smart Urban Parking Assistance System
-          </p>
+          <p className="text-lg font-extrabold tracking-wide">SUPAS</p>
+          <p className="mt-2 text-sm text-slate-400">Smart Urban Parking Assistance System</p>
         </div>
 
-        <div className="text-center text-gray-400 md:text-right">
-          <p>University of Rwanda</p>
-          <p>Computer Engineering</p>
-          <p>Copyright 2026. All rights reserved.</p>
+        <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-slate-400">
+          <a href="#features" className="hover:text-white">Platform</a>
+          <a href="#how" className="hover:text-white">How it works</a>
+          <Link to="/login" className="hover:text-white">Sign in</Link>
+          <span>© 2026 SUPAS</span>
         </div>
       </div>
     </footer>

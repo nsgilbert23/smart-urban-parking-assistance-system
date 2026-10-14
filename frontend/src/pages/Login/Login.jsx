@@ -1,117 +1,68 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import AuthLayout from "../../layouts/AuthLayout";
+import Button from "../../components/ui/Button";
+import Input from "../../components/ui/Input";
 import useAuth from "../../hooks/useAuth";
 
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-  });
-
+  const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function handleChange(e) {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
+  function handleChange(event) {
+    setForm((current) => ({ ...current, [event.target.name]: event.target.value }));
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-
+  async function handleSubmit(event) {
+    event.preventDefault();
     setLoading(true);
     setError("");
-
     try {
-      await login(form);
-
-      navigate("/dashboard");
-    } catch (err) {
-      if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError("Invalid email or password.");
-      }
+      const result = await login(form);
+      navigate(["OPERATOR", "ADMIN"].includes(result.user?.role) ? "/operator-dashboard" : "/dashboard");
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || "We couldn’t sign you in. Check your details and try again.");
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100">
-      <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-lg">
-
-        <h1 className="mb-2 text-3xl font-bold">
-          Welcome Back
-        </h1>
-
-        <p className="mb-8 text-gray-500">
-          Login to Smart Urban Parking Assistance System
-        </p>
-
-        {error && (
-          <div className="mb-4 rounded bg-red-100 p-3 text-red-700">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-
-          <div>
-            <label className="font-medium">Email</label>
-
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              className="mt-2 w-full rounded-lg border p-3"
-              placeholder="example@email.com"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="font-medium">Password</label>
-
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              className="mt-2 w-full rounded-lg border p-3"
-              placeholder="********"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-lg bg-blue-600 p-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {loading ? "Signing In..." : "Login"}
-          </button>
-
-        </form>
-
-        <p className="mt-6 text-center">
-          Don't have an account?
-
-          <Link
-            className="ml-2 text-blue-600 hover:underline"
-            to="/register"
-          >
-            Register
-          </Link>
-        </p>
-
-      </div>
-    </div>
+    <AuthLayout eyebrow="Welcome back" title="Sign in to SUPAS" description="Access your vehicles, reservations, and parking sessions.">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {error && <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800" role="alert">{error}</p>}
+        <Input
+          id="login-email"
+          name="email"
+          label="Email address"
+          type="email"
+          autoComplete="email"
+          placeholder="you@example.com"
+          value={form.email}
+          onChange={handleChange}
+          required
+        />
+        <Input
+          id="login-password"
+          name="password"
+          label="Password"
+          type="password"
+          autoComplete="current-password"
+          placeholder="Enter your password"
+          value={form.password}
+          onChange={handleChange}
+          required
+        />
+        <Button type="submit" disabled={loading} className="w-full">
+          {loading ? "Signing in…" : "Sign in"}
+        </Button>
+      </form>
+      <p className="mt-6 text-center text-sm text-slate-600">
+        New to SUPAS? <Link className="font-semibold text-teal-800 hover:underline" to="/register">Create an account</Link>
+      </p>
+    </AuthLayout>
   );
 }
