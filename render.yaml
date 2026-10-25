@@ -110,7 +110,6 @@
   - type: web
     runtime: static
     name: supas-web
-    region: frankfurt
     rootDir: frontend
     buildCommand: npm ci && npm run build
     staticPublishPath: dist
@@ -130,5 +129,6 @@ databases:
     plan: basic-256mb
     databaseName: smart_parking
     user: smart_parking
+
 
 
