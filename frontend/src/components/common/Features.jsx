@@ -3,9 +3,9 @@ import Card from "../ui/Card";
 const features = [
   {
     icon: "01",
-    title: "Live slot visibility",
+    title: "Operator-reported availability",
     description:
-      "Review available, reserved, occupied, and maintenance spaces before you set out.",
+      "Check available, reserved, occupied, and maintenance spaces before you set out. Operators update spaces from their dashboard.",
   },
   {
     icon: "02",
@@ -21,9 +21,9 @@ const features = [
   },
   {
     icon: "04",
-    title: "Operator workspace",
+    title: "Clear parking costs",
     description:
-      "Give parking teams a focused view of occupancy, slots, and active sessions.",
+      "Review the hourly rate and an estimated stay cost before you confirm a reservation.",
   },
 ];
 

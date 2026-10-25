@@ -43,7 +43,7 @@ export default function AdminDashboard() {
   const [placesError, setPlacesError] = useState("");
   const [slotForm, setSlotForm] = useState({ zone: "", slot_number: "" });
   const [editZoneForm, setEditZoneForm] = useState({
-    zone: "", name: "", location: "", description: "", latitude: "", longitude: "",
+    zone: "", name: "", location: "", description: "", latitude: "", longitude: "", operator: "",
   });
   const [editPlaceResults, setEditPlaceResults] = useState([]);
   const [editPlacesLoading, setEditPlacesLoading] = useState(false);
@@ -185,6 +185,7 @@ export default function AdminDashboard() {
       description: zone?.description ?? "",
       latitude: zone?.latitude ?? "",
       longitude: zone?.longitude ?? "",
+      operator: zone?.operator ?? "",
     });
     setEditPlaceResults([]);
     setEditPlacesError("");
@@ -243,6 +244,7 @@ export default function AdminDashboard() {
         description: editZoneForm.description,
         latitude: editZoneForm.latitude,
         longitude: editZoneForm.longitude,
+        operator: editZoneForm.operator || null,
       });
       await loadDashboard();
       setActionSuccess(`Zone details for ${editZoneForm.name} were updated.`);
@@ -378,6 +380,7 @@ export default function AdminDashboard() {
                   {editZoneForm.latitude !== "" && editZoneForm.longitude !== "" && <div className="mt-4 overflow-hidden rounded-lg border border-slate-300 bg-white"><iframe title="OpenStreetMap preview of existing zone entrance" src={`https://www.openstreetmap.org/export/embed.html?bbox=${encodeURIComponent(`${Number(editZoneForm.longitude) - 0.015},${Number(editZoneForm.latitude) - 0.01},${Number(editZoneForm.longitude) + 0.015},${Number(editZoneForm.latitude) + 0.01}`)}&layer=mapnik&marker=${encodeURIComponent(`${editZoneForm.latitude},${editZoneForm.longitude}`)}`} className="h-56 w-full border-0" loading="lazy" /><p className="border-t border-slate-200 px-3 py-2 text-xs text-slate-600"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline">© OpenStreetMap contributors</a></p></div>}
                 </div>
                 <div><label htmlFor="edit-zone-description" className="mb-1 block text-sm font-medium text-slate-700">Description <span className="font-normal text-slate-500">(optional)</span></label><textarea id="edit-zone-description" value={editZoneForm.description} onChange={(event) => setEditZoneForm((current) => ({ ...current, description: event.target.value }))} rows={2} disabled={!editZoneForm.zone} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100" /></div>
+                <div><label htmlFor="edit-zone-operator" className="mb-1 block text-sm font-medium text-slate-700">Assigned operator</label><select id="edit-zone-operator" value={editZoneForm.operator} onChange={(event) => setEditZoneForm((current) => ({ ...current, operator: event.target.value }))} disabled={!editZoneForm.zone} className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100"><option value="">No operator assigned</option>{(data.operators || []).map((operator) => <option key={operator.id} value={operator.id} disabled={!operator.is_active && String(operator.id) !== String(editZoneForm.operator)}>{[operator.first_name, operator.last_name].filter(Boolean).join(" ") || operator.email} · {operator.email}{operator.is_active ? "" : " (inactive)"}</option>)}</select><p className="mt-1 text-xs text-slate-500">Operators can only view and manage the zones assigned here. Create operator accounts in user administration first.</p></div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div><label htmlFor="existing-zone-latitude" className="mb-1 block text-sm font-medium text-slate-700">Entrance latitude</label><input id="existing-zone-latitude" type="number" min="-90" max="90" step="0.000001" value={editZoneForm.latitude} onChange={(event) => setEditZoneForm((current) => ({ ...current, latitude: event.target.value }))} required disabled={!editZoneForm.zone} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100" /></div>
                   <div><label htmlFor="existing-zone-longitude" className="mb-1 block text-sm font-medium text-slate-700">Entrance longitude</label><input id="existing-zone-longitude" type="number" min="-180" max="180" step="0.000001" value={editZoneForm.longitude} onChange={(event) => setEditZoneForm((current) => ({ ...current, longitude: event.target.value }))} required disabled={!editZoneForm.zone} className="w-full rounded-lg border border-slate-300 px-3 py-2.5 focus:border-teal-600 focus:outline-none focus:ring-2 focus:ring-teal-100 disabled:bg-slate-100" /></div>

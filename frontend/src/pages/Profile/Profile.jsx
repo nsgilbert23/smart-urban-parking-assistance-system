@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getProfile, updateProfile } from "../../services/profileService";
+import api from "../../services/api";
+import GoogleSignInButton from "../../components/auth/GoogleSignInButton";
 
 const editableFields = [
   { name: "first_name", label: "First name", autoComplete: "given-name" },
@@ -24,6 +26,9 @@ export default function Profile() {
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState("");
   const [success, setSuccess] = useState("");
+  const [googleError, setGoogleError] = useState("");
+  const [googleSuccess, setGoogleSuccess] = useState("");
+  const [linkingGoogle, setLinkingGoogle] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -101,6 +106,22 @@ export default function Profile() {
     }
   }
 
+  async function handleGoogleCredential(credential) {
+    setLinkingGoogle(true);
+    setGoogleError("");
+    setGoogleSuccess("");
+    try {
+      const response = await api.post("/auth/google/link/", { credential });
+      setProfile((current) => ({ ...current, google_linked: response.data.google_linked }));
+      setGoogleSuccess("Google sign-in is connected to this SUPAS account.");
+    } catch (error) {
+      const detail = error.response?.data?.detail;
+      setGoogleError(typeof detail === "string" ? detail : "Google could not be connected. Please try again.");
+    } finally {
+      setLinkingGoogle(false);
+    }
+  }
+
   if (loading) {
     return (
       <main className="flex min-h-[60vh] items-center justify-center px-4" aria-busy="true">
@@ -148,7 +169,7 @@ export default function Profile() {
           <aside className="surface-card overflow-hidden" aria-label="Account overview">
             <div className="h-2 bg-gradient-to-r from-teal-700 via-teal-500 to-sky-400" />
             <div className="p-6 sm:p-7">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-900 text-xl font-bold tracking-wide text-white shadow-sm" aria-hidden="true">{initials}</div>
+              <div className="flex h-16 w-16 items-center justify-center rounded-full border-4 border-teal-50 bg-slate-900 text-xl font-bold tracking-wide text-white shadow-sm" aria-hidden="true">{initials}</div>
               <p className="mt-6 text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Signed in as</p>
               <h2 className="mt-2 break-words text-xl font-bold tracking-tight text-slate-950">{fullName}</h2>
               <p className="mt-2 break-all text-sm leading-6 text-slate-600">{profile.email}</p>
@@ -195,6 +216,7 @@ export default function Profile() {
                         aria-describedby={errors[name] ? `${name}-error` : undefined}
                         className={`w-full rounded-xl border bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:ring-4 ${errors[name] ? "border-red-400 focus:border-red-500 focus:ring-red-100" : "border-slate-300 focus:border-teal-600 focus:ring-teal-100"}`}
                       />
+                      {name === "phone_number" && <p className="mt-1.5 text-xs text-slate-500">If you choose mobile money at checkout, the operator can send the payment approval prompt to this number. You approve the payment on your phone.</p>}
                       {errors[name] && <p id={`${name}-error`} className="mt-1.5 text-sm text-red-700">{errors[name]}</p>}
                     </div>
                   ))}
@@ -219,6 +241,21 @@ export default function Profile() {
             )}
           </section>
         </div>
+        <section className="surface-card mt-5 flex flex-col gap-5 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6" aria-labelledby="google-signin-heading">
+          <div>
+            <h2 id="google-signin-heading" className="font-bold text-slate-900">Google sign-in</h2>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">{profile.google_linked ? "A Google account is connected. You can use it to sign in to SUPAS." : "Connect the Google account that uses this same email address. We use it only for identity; SUPAS does not access your Gmail inbox."}</p>
+            {googleError && <p className="mt-2 text-sm text-red-700" role="alert">{googleError}</p>}
+            {googleSuccess && <p className="mt-2 text-sm text-emerald-800" role="status">{googleSuccess}</p>}
+          </div>
+          {profile.google_linked ? (
+            <span className="inline-flex w-fit shrink-0 items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"><span className="h-2 w-2 rounded-full bg-emerald-600" aria-hidden="true" />Connected</span>
+          ) : (
+            <div className={linkingGoogle ? "pointer-events-none shrink-0 opacity-60" : "shrink-0"}>
+              <GoogleSignInButton onCredential={handleGoogleCredential} disabled={linkingGoogle} />
+            </div>
+          )}
+        </section>
       </div>
     </main>
   );

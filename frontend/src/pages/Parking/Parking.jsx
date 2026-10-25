@@ -23,6 +23,7 @@ export default function Parking() {
   const [selectedSlot, setSelectedSlot] = useState("");
   const [selectedVehicle, setSelectedVehicle] = useState("");
   const [selectedPricingRule, setSelectedPricingRule] = useState("");
+  const [estimatedDurationHours, setEstimatedDurationHours] = useState("2");
 
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
@@ -30,11 +31,13 @@ export default function Parking() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [now, setNow] = useState(Date.now());
+  const [availabilityUpdatedAt, setAvailabilityUpdatedAt] = useState(null);
   const [expiredNotice, setExpiredNotice] = useState(false);
   const [nearbyResults, setNearbyResults] = useState(null);
   const [findingNearby, setFindingNearby] = useState(false);
   const [nearbyError, setNearbyError] = useState("");
   const refreshedExpiryIds = useRef(new Set());
+  const reservationFormRef = useRef(null);
 
   async function handleFindNearby() {
     setNearbyError("");
@@ -80,12 +83,48 @@ export default function Parking() {
     return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${meters} m`;
   }
 
+  function handleChooseNearbyZone(zone) {
+    const firstAvailableSlot = slots.find((slot) =>
+      String(slot.zone) === String(zone.id) &&
+      slot.is_active &&
+      slot.status === "AVAILABLE" &&
+      !activeSlotIds.has(String(slot.id))
+    );
+
+    setSelectedZone(String(zone.id));
+    setSelectedSlot(firstAvailableSlot ? String(firstAvailableSlot.id) : "");
+    setError("");
+    setSuccess(firstAvailableSlot
+      ? `${zone.name} selected and space ${firstAvailableSlot.slot_number} chosen. Select your vehicle and confirm below to reserve it.`
+      : `Availability at ${zone.name} has changed. Choose another available space below.`);
+    reservationFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   // ==========================================
   // LOAD DATA
   // ==========================================
 
   useEffect(() => {
     loadParkingData();
+  }, []);
+
+  useEffect(() => {
+    const refreshAvailability = async () => {
+      try {
+        const [latestSlots, latestSessions] = await Promise.all([
+          getParkingSlots(),
+          getParkingSessions(),
+        ]);
+        setSlots(latestSlots);
+        setSessions(latestSessions);
+        setAvailabilityUpdatedAt(Date.now());
+      } catch (refreshError) {
+        // Keep the last successful operator report visible if a refresh fails.
+        console.error("Failed to refresh parking availability:", refreshError);
+      }
+    };
+    const timer = window.setInterval(refreshAvailability, 20000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -156,6 +195,7 @@ export default function Parking() {
       setVehicles(vehiclesData);
       setPricingRules(pricingData);
       setSessions(sessionsData);
+      setAvailabilityUpdatedAt(Date.now());
 
       // Select default pricing rule
       const defaultRule = pricingData.find(
@@ -290,9 +330,10 @@ export default function Parking() {
         slot: selectedSlot,
         pricing_rule: selectedPricingRule,
         status: "ACTIVE",
+        estimated_duration_minutes: Number(estimatedDurationHours) * 60,
       });
 
-      setSuccess("Parking is reserved. Your session starts when the parking sensor detects your vehicle.");
+      setSuccess("Parking is reserved. Show the reservation to the operator when you arrive so they can start your session.");
 
       // Reset selections
       setSelectedSlot("");
@@ -355,8 +396,9 @@ export default function Parking() {
           </h1>
 
           <p className="mt-2 text-gray-600">
-            Find an available parking space and start your parking session.
+            Availability is reported by parking operators. Reserve a space, show your confirmation on arrival, then follow your session and final charge here.
           </p>
+          <p className="mt-1 text-xs text-gray-500" aria-live="polite">Availability refreshes every 20 seconds{availabilityUpdatedAt ? ` · Last checked ${new Date(availabilityUpdatedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}` : ""}. Reservation expiry is shown after confirmation.</p>
         </div>
 
         <section className="mb-6 rounded-2xl border border-teal-100 bg-white p-5 shadow-sm sm:p-6" aria-labelledby="nearby-parking-heading">
@@ -375,6 +417,12 @@ export default function Parking() {
             <ul className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Nearby parking zones">
               {nearbyResults.map((zone) => {
                 const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${zone.latitude},${zone.longitude}`)}`;
+                const hasAvailableSlot = slots.some((slot) =>
+                  String(slot.zone) === String(zone.id) &&
+                  slot.is_active &&
+                  slot.status === "AVAILABLE" &&
+                  !activeSlotIds.has(String(slot.id))
+                );
                 return (
                   <li key={zone.id} className="rounded-xl border border-slate-200 p-4">
                     <div className="flex items-start justify-between gap-3">
@@ -385,6 +433,9 @@ export default function Parking() {
                       <p className="text-sm font-medium text-slate-700">{formatDistance(zone.distance_meters)} away <span className="text-slate-500">(straight-line)</span></p>
                       <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 rounded-lg border border-teal-700 px-3 py-2 text-sm font-semibold text-teal-900 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600" aria-label={`Get directions to ${zone.name} in Google Maps`}>Directions</a>
                     </div>
+                    <button type="button" onClick={() => handleChooseNearbyZone(zone)} disabled={!hasAvailableSlot} className="mt-4 w-full rounded-lg bg-teal-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300">
+                      {hasAvailableSlot ? "Choose location & select a space" : "No spaces currently available"}
+                    </button>
                   </li>
                 );
               })}
@@ -421,7 +472,7 @@ export default function Parking() {
                   <div key={slot.id} className="flex flex-col justify-between gap-3 rounded-lg bg-white p-4 md:flex-row md:items-center">
                     <div>
                       <p className="font-semibold text-gray-900">{slot.zone_name} · Slot {slot.slot_number}</p>
-                      <p className="text-sm text-gray-600">Vehicle {slot.reserved_vehicle_plate_number || "—"} · Status: Reserved</p>
+                  <p className="text-sm text-gray-600">Vehicle {slot.reserved_vehicle_plate_number || "—"} · Planned stay {Math.floor((slot.reserved_estimated_duration_minutes || 0) / 60)}h {(slot.reserved_estimated_duration_minutes || 0) % 60}m</p>
                       <p className="text-sm text-gray-600">{slot.reservation_expires_at ? <>Expires {new Date(slot.reservation_expires_at).toLocaleString()} · Reserved for {countdown}</> : "Reservation expiration is not available."}</p>
                     </div>
                     <button type="button" onClick={() => cancelReservation(slot.id)} className="rounded-lg border border-red-200 px-4 py-2 font-semibold text-red-700 hover:bg-red-50">
@@ -456,7 +507,15 @@ export default function Parking() {
                     </p>
                   </div>
 
-                  <p className="text-sm text-blue-700">Ends automatically when the parking sensor detects that the vehicle has left.</p>
+                  <div className="text-sm text-blue-800">
+                    <p>Your operator confirms arrival and departure. Your profile phone number is saved for the selected mobile money prompt, which you approve on your phone.</p>
+                    {session.estimated_duration_minutes != null && (() => {
+                      const elapsed = Math.max(0, Math.ceil((now - new Date(session.start_time).getTime()) / 60000));
+                      const remaining = session.estimated_duration_minutes - elapsed;
+                      const format = (minutes) => `${Math.floor(Math.abs(minutes) / 60)}h ${Math.abs(minutes) % 60}m`;
+                      return <p className={`mt-2 font-semibold ${remaining < 0 ? "text-amber-800" : "text-teal-800"}`}>Time used: {format(elapsed)} · {remaining < 0 ? `Past estimate by ${format(remaining)}` : `${format(remaining)} remaining`}</p>;
+                    })()}
+                  </div>
                 </div>
               ))}
             </div>
@@ -465,7 +524,7 @@ export default function Parking() {
 
 
         {/* Parking Workflow */}
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div ref={reservationFormRef} className="grid scroll-mt-6 gap-8 lg:grid-cols-3">
 
           {/* LEFT SIDE */}
           <div className="lg:col-span-2">
@@ -473,11 +532,11 @@ export default function Parking() {
             <div className="rounded-2xl bg-white p-8 shadow">
 
               <h2 className="text-2xl font-bold text-gray-900">
-                Start Parking
+                Reserve a space
               </h2>
 
               <p className="mt-2 text-gray-500">
-                Follow the steps below to find and reserve your parking space.
+                  Choose a location, space, vehicle, and planned stay. Your reservation expiry is shown after confirmation; your parking session starts when the operator confirms your arrival.
               </p>
 
 
@@ -608,6 +667,16 @@ export default function Parking() {
                   </select>
                 </div>
 
+                <div>
+                  <label htmlFor="estimated-parking-hours" className="mb-2 block font-semibold text-gray-700">
+                    5. How long do you expect to park?
+                  </label>
+                  <select id="estimated-parking-hours" value={estimatedDurationHours} onChange={(event) => setEstimatedDurationHours(event.target.value)} className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 outline-none focus:border-blue-500">
+                    {[1, 2, 3, 4, 6, 8, 12, 24].map((hours) => <option key={hours} value={hours}>{hours} {hours === 1 ? "hour" : "hours"}</option>)}
+                  </select>
+                  <p className="mt-2 text-sm text-gray-500">This is an estimate to help you track your time. Parking continues until the operator confirms your departure.</p>
+                </div>
+
 
                 {/* START BUTTON */}
                 <button
@@ -617,7 +686,7 @@ export default function Parking() {
                 >
                   {starting
                     ? "Starting Parking..."
-                    : "Start Parking"}
+                    : "Confirm reservation"}
                 </button>
 
               </form>
@@ -694,16 +763,18 @@ export default function Parking() {
                     Price
                   </p>
 
-                  <p className="text-xl font-bold text-green-600">
+                  <p className="text-xl font-bold text-green-700">
                     {selectedPricingRule
-                      ? pricingRules.find(
-                          (rule) =>
-                            String(rule.id) ===
-                            String(selectedPricingRule)
-                        )?.cost_per_hour
-                      : "--"}
-                    {" / hour"}
+                      ? `${Number(pricingRules.find((rule) => String(rule.id) === String(selectedPricingRule))?.cost_per_hour || 0).toLocaleString()} RWF / hour`
+                      : "Select a rate"}
                   </p>
+                </div>
+
+                <div>
+                  <p className="text-sm text-gray-500">Estimated parking time</p>
+                  <p className="font-semibold text-gray-900">{estimatedDurationHours} {Number(estimatedDurationHours) === 1 ? "hour" : "hours"}</p>
+                  <p className="mt-1 text-sm font-semibold text-gray-700">Estimated total: {selectedPricingRule ? Math.max(0, (Number(estimatedDurationHours) * 60 - Number(pricingRules.find((rule) => String(rule.id) === String(selectedPricingRule))?.grace_period_minutes || 0)) / 60 * Number(pricingRules.find((rule) => String(rule.id) === String(selectedPricingRule))?.cost_per_hour || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "0.00"} RWF</p>
+                  <p className="mt-1 text-xs leading-5 text-gray-500">Estimate for your planned stay after the grace period. The final amount is based on your actual session duration and is confirmed at departure.</p>
                 </div>
 
               </div>

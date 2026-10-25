@@ -1,0 +1,134 @@
+﻿services:
+  - type: web
+    name: supas-api
+    runtime: python
+    region: frankfurt
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    preDeployCommand: python manage.py migrate && python manage.py collectstatic --no-input
+    startCommand: gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+    healthCheckPath: /
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: DJANGO_ALLOWED_HOSTS
+        value: supas-api.onrender.com
+      - key: DJANGO_SECURE_SSL_REDIRECT
+        value: "True"
+      - key: DJANGO_SECURE_HSTS_SECONDS
+        value: "31536000"
+      - key: DB_ENGINE
+        value: postgresql
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: supas-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: supas-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: supas-postgres
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: supas-postgres
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: supas-postgres
+          property: port
+      - key: FRONTEND_BASE_URL
+        value: https://supas-web.onrender.com
+      - key: CORS_ALLOWED_ORIGINS
+        value: https://supas-web.onrender.com
+      - key: CSRF_TRUSTED_ORIGINS
+        value: https://supas-web.onrender.com
+      - key: EMAIL_BACKEND
+        value: django.core.mail.backends.smtp.EmailBackend
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: GOOGLE_OAUTH_CLIENT_ID
+        sync: false
+
+  - type: cron
+    name: supas-expire-reservations
+    runtime: python
+    region: frankfurt
+    plan: 0.5c-512mb
+    rootDir: backend
+    schedule: "*/5 * * * *"
+    buildCommand: pip install -r requirements.txt
+    startCommand: python manage.py expire_parking_reservations
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_SECRET_KEY
+        fromService:
+          type: web
+          name: supas-api
+          envVarKey: DJANGO_SECRET_KEY
+      - key: DJANGO_ALLOWED_HOSTS
+        value: supas-api.onrender.com
+      - key: DB_ENGINE
+        value: postgresql
+      - key: POSTGRES_DB
+        fromDatabase:
+          name: supas-postgres
+          property: database
+      - key: POSTGRES_USER
+        fromDatabase:
+          name: supas-postgres
+          property: user
+      - key: POSTGRES_PASSWORD
+        fromDatabase:
+          name: supas-postgres
+          property: password
+      - key: POSTGRES_HOST
+        fromDatabase:
+          name: supas-postgres
+          property: host
+      - key: POSTGRES_PORT
+        fromDatabase:
+          name: supas-postgres
+          property: port
+
+  - type: web
+    runtime: static
+    name: supas-web
+    region: frankfurt
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_BASE_URL
+        value: https://supas-api.onrender.com/api
+      - key: VITE_GOOGLE_CLIENT_ID
+        sync: false
+
+databases:
+  - name: supas-postgres
+    region: frankfurt
+    plan: basic-256mb
+    databaseName: smart_parking
+    user: smart_parking
+
+
