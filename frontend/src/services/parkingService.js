@@ -77,11 +77,11 @@ export async function updateParkingSession(id, session) {
   return response.data;
 }
 
-export async function startParkingSession(session) {
-  return createParkingSession(session);
+export async function getSessionPaymentStatus(id) {
+  const response = await api.get(`/parking-sessions/${id}/payment-status/`);
+  return response.data;
 }
 
-export async function reportSensorEvent(event) {
-  const response = await api.post("/sensor-events/", event);
-  return response.data;
+export async function startParkingSession(session) {
+  return createParkingSession(session);
 }

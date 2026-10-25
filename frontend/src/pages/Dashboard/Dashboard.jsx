@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
+import { getProfile } from "../../services/profileService";
+import { getVehicles } from "../../services/vehicleService";
 
 const shortcuts = [
   {
@@ -39,6 +42,20 @@ const shortcuts = [
 export default function Dashboard() {
   const { user } = useAuth();
   const firstName = user?.first_name || "there";
+  const [setupNeeds, setSetupNeeds] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    Promise.all([getProfile().catch(() => null), getVehicles().catch(() => null)])
+      .then(([profile, vehicles]) => {
+        if (!active) return;
+        setSetupNeeds({
+          phone: profile ? !profile.phone_number : false,
+          vehicle: Array.isArray(vehicles) ? vehicles.length === 0 : false,
+        });
+      });
+    return () => { active = false; };
+  }, []);
 
   return (
     <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
@@ -57,6 +74,18 @@ export default function Dashboard() {
           Find parking <span aria-hidden="true">→</span>
         </Link>
       </section>
+
+      {setupNeeds && (setupNeeds.phone || setupNeeds.vehicle) && (
+        <section className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-6" aria-labelledby="account-setup-heading">
+          <p className="text-xs font-bold uppercase tracking-[0.13em] text-amber-800">A quick setup step</p>
+          <h2 id="account-setup-heading" className="mt-2 text-lg font-bold text-slate-900">Complete your parking profile</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">{user?.google_linked ? "Google provides your name and verified email only. SUPAS does not access your Gmail inbox." : "A few account details are still missing."} Add your vehicle before reserving a space. Add a phone number if you want to receive mobile-money payment prompts.</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {setupNeeds.phone && <Link to="/profile" className="rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">Add phone number</Link>}
+            {setupNeeds.vehicle && <Link to="/vehicles" className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-white">Add a vehicle</Link>}
+          </div>
+        </section>
+      )}
 
       <section className="mt-10" aria-labelledby="shortcuts-heading">
         <div className="mb-5 flex flex-col justify-between gap-2 sm:flex-row sm:items-end">

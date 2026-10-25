@@ -14,6 +14,8 @@ import OperatorDashboard from "../pages/OperatorDashboard/OperatorDashboard";
 import AdminDashboard from "../pages/AdminDashboard/AdminDashboard";
 import ReportsAnalytics from "../pages/ReportsAnalytics/ReportsAnalytics";
 import NotFound from "../pages/NotFound/NotFound";
+import PasswordResetRequest from "../pages/PasswordReset/PasswordResetRequest";
+import PasswordResetConfirm from "../pages/PasswordReset/PasswordResetConfirm";
 import AuthenticatedLayout from "../layouts/AuthenticatedLayout";
 
 import ProtectedRoute from "./ProtectedRoute";
@@ -29,6 +31,8 @@ export default function AppRoutes() {
       <Route path="/login" element={<Login />} />
 
       <Route path="/register" element={<Register />} />
+      <Route path="/reset-password" element={<PasswordResetRequest />} />
+      <Route path="/reset-password/:uid/:token" element={<PasswordResetConfirm />} />
 
       <Route element={<ProtectedRoute><AuthenticatedLayout /></ProtectedRoute>}>
         <Route path="/dashboard" element={<Dashboard />} />

@@ -25,10 +25,19 @@ class OperatorSlotStatusSerializer(serializers.Serializer):
 
 
 class ParkingZoneSerializer(serializers.ModelSerializer):
+    operator_name = serializers.SerializerMethodField()
+
+    def get_operator_name(self, obj):
+        if not obj.operator_id:
+            return None
+        return f"{obj.operator.first_name} {obj.operator.last_name}".strip() or obj.operator.email
+
     class Meta:
         model = ParkingZone
         fields = (
             "id",
+            "operator",
+            "operator_name",
             "name",
             "location",
             "description",
@@ -39,10 +48,15 @@ class ParkingZoneSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "created_at", "updated_at")
+        read_only_fields = ("id", "operator_name", "created_at", "updated_at")
 
     def validate(self, attrs):
+        operator = attrs.get("operator")
+        if operator and operator.role != "OPERATOR":
+            raise serializers.ValidationError({"operator": "Only operator accounts can be assigned to a parking zone."})
         instance = self.instance
+        if operator and not operator.is_active and (instance is None or instance.operator_id != operator.id):
+            raise serializers.ValidationError({"operator": "Choose an active operator account."})
         latitude = attrs.get("latitude", getattr(instance, "latitude", None))
         longitude = attrs.get("longitude", getattr(instance, "longitude", None))
         if (latitude is None) != (longitude is None):
@@ -88,6 +102,7 @@ class ParkingSlotSerializer(serializers.ModelSerializer):
             "sensor_id",
             "reserved_vehicle",
             "reserved_pricing_rule",
+            "reserved_estimated_duration_minutes",
             "reserved_vehicle_plate_number",
             "reserved_at",
             "reservation_expires_at",
@@ -96,7 +111,7 @@ class ParkingSlotSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         )
-        read_only_fields = ("id", "zone_name", "reserved_vehicle", "reserved_pricing_rule", "reserved_vehicle_plate_number", "reserved_at", "reservation_expires_at", "reservation_owned_by_current_user", "created_at", "updated_at")
+        read_only_fields = ("id", "zone_name", "reserved_vehicle", "reserved_pricing_rule", "reserved_estimated_duration_minutes", "reserved_vehicle_plate_number", "reserved_at", "reservation_expires_at", "reservation_owned_by_current_user", "created_at", "updated_at")
 
     def get_fields(self):
         fields = super().get_fields()
@@ -106,6 +121,32 @@ class ParkingSlotSerializer(serializers.ModelSerializer):
             user and (user.is_staff or getattr(user, "role", "") in {"ADMIN", "OPERATOR"})
         )
         return fields
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if not user or not user.is_authenticated:
+            return data
+
+        can_view_all_reservations = getattr(user, "role", "") in {"ADMIN", "OPERATOR"}
+        owns_reservation = bool(
+            instance.reserved_vehicle_id
+            and instance.reserved_vehicle.owner_id == user.id
+        )
+        if not can_view_all_reservations and not owns_reservation:
+            for field in (
+                "reserved_vehicle",
+                "reserved_pricing_rule",
+                "reserved_estimated_duration_minutes",
+                "reserved_vehicle_plate_number",
+                "reserved_at",
+                "reservation_expires_at",
+            ):
+                data[field] = None
+        if getattr(user, "role", "") == "DRIVER":
+            data["sensor_id"] = None
+        return data
 
 
 class PricingRuleSerializer(serializers.ModelSerializer):
@@ -138,6 +179,19 @@ class ParkingSessionSerializer(serializers.ModelSerializer):
     slot_status = serializers.CharField(source="slot.status", read_only=True)
     cost_per_hour = serializers.DecimalField(source="pricing_rule.cost_per_hour", max_digits=8, decimal_places=2, read_only=True)
     grace_period_minutes = serializers.IntegerField(source="pricing_rule.grace_period_minutes", read_only=True)
+    payment_status = serializers.CharField(read_only=True)
+    payment_method = serializers.CharField(read_only=True)
+    has_payment_phone_number = serializers.SerializerMethodField()
+    latest_mobile_money_status = serializers.SerializerMethodField()
+
+    def get_has_payment_phone_number(self, obj):
+        return bool(obj.payment_phone_number)
+
+    def get_latest_mobile_money_status(self, obj):
+        attempt = obj.mobile_money_payments.order_by("-created_at").first()
+        if not attempt:
+            return None
+        return {"provider": attempt.provider, "status": attempt.status, "message": attempt.provider_message}
 
     pricing_rule_name = serializers.CharField(
         source="pricing_rule.name",
@@ -158,6 +212,11 @@ class ParkingSessionSerializer(serializers.ModelSerializer):
             "pricing_rule_name",
             "cost_per_hour",
             "grace_period_minutes",
+            "payment_status",
+            "payment_method",
+            "has_payment_phone_number",
+            "latest_mobile_money_status",
+            "estimated_duration_minutes",
             "start_time",
             "end_time",
             "duration_minutes",

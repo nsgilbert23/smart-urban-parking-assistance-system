@@ -1,4 +1,6 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -7,6 +9,11 @@ User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
+    google_linked = serializers.SerializerMethodField()
+
+    def get_google_linked(self, obj):
+        return bool(obj.google_sub)
+
     class Meta:
         model = User
         fields = (
@@ -16,6 +23,7 @@ class UserSerializer(serializers.ModelSerializer):
             "last_name",
             "phone_number",
             "role",
+            "google_linked",
             "date_joined",
         )
         read_only_fields = ("id", "role", "date_joined")
@@ -23,6 +31,11 @@ class UserSerializer(serializers.ModelSerializer):
 
 class ProfileSerializer(serializers.ModelSerializer):
     """Expose safe profile data and allow edits to contact details only."""
+
+    google_linked = serializers.SerializerMethodField()
+
+    def get_google_linked(self, obj):
+        return bool(obj.google_sub)
 
     PROTECTED_FIELDS = {
         "id",
@@ -36,6 +49,7 @@ class ProfileSerializer(serializers.ModelSerializer):
         "password",
         "last_login",
         "date_joined",
+        "google_sub",
     }
 
     class Meta:
@@ -47,6 +61,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "email",
             "phone_number",
             "role",
+            "google_linked",
         )
         read_only_fields = ("id", "email", "role")
 
@@ -91,6 +106,10 @@ class RegisterSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"password_confirm": "Passwords do not match."}
             )
+        try:
+            validate_password(attrs["password"])
+        except DjangoValidationError as error:
+            raise serializers.ValidationError({"password": error.messages}) from error
         return attrs
 
     def create(self, validated_data):

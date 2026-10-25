@@ -8,6 +8,7 @@ export default function Input({
   name,
   autoComplete,
   required = false,
+  minLength,
   disabled = false,
   error = "",
 }) {
@@ -28,6 +29,7 @@ export default function Input({
         placeholder={placeholder}
         autoComplete={autoComplete}
         required={required}
+        minLength={minLength}
         disabled={disabled}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${id || name}-error` : undefined}

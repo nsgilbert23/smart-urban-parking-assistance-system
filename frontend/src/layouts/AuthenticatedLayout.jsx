@@ -23,6 +23,7 @@ export default function AuthenticatedLayout() {
   const navigate = useNavigate();
   const [unreadCount, setUnreadCount] = useState(0);
   const isAdmin = user?.role === "ADMIN";
+  const initials = [user?.first_name, user?.last_name].filter(Boolean).map((name) => name[0]).join("").slice(0, 2).toUpperCase() || "U";
   const isOperator = ["OPERATOR", "ADMIN"].includes(user?.role);
   const navItems = isAdmin
     ? [
@@ -92,8 +93,9 @@ export default function AuthenticatedLayout() {
             ))}
           </nav>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <Link to="/profile" className="hidden max-w-40 truncate text-sm font-medium text-slate-600 hover:text-teal-800 md:block" title={user?.email}>
-              {user?.first_name || "Account"}
+            <Link to="/profile" className="inline-flex min-w-0 items-center gap-2 rounded-full p-1 pr-2 transition hover:bg-slate-100 focus-visible:ring-2 focus-visible:ring-teal-600" title={user?.email} aria-label={`Open ${user?.first_name || "account"} profile`}>
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-teal-800 text-xs font-bold text-white ring-2 ring-teal-100" aria-hidden="true">{initials}</span>
+              <span className="hidden max-w-32 truncate text-sm font-medium text-slate-600 md:block">{user?.first_name || "Account"}</span>
             </Link>
             <button type="button" onClick={handleLogout} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-teal-600">
               Sign out

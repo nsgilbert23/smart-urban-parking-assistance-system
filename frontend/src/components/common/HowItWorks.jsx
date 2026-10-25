@@ -1,23 +1,23 @@
 const steps = [
   {
     number: "01",
-    title: "Register",
-    description: "Create your account and register your vehicle.",
+    title: "Browse locations",
+    description: "Compare active locations, operator-reported spaces, and the published hourly rate.",
   },
   {
     number: "02",
-    title: "Find a Parking Space",
-    description: "Search for available parking spaces in real time.",
+    title: "Create your account",
+    description: "Add your vehicle, choose a location and space, and review your estimated cost.",
   },
   {
     number: "03",
-    title: "Arrive and park",
-    description: "The slot sensor confirms arrival and starts the parking session.",
+    title: "Reserve and arrive",
+    description: "Confirm your reservation, then show it to the location operator when you arrive.",
   },
   {
     number: "04",
-    title: "Leave when ready",
-    description: "The slot sensor records departure and completes the session.",
+    title: "Park and pay",
+    description: "The operator records your arrival and departure. Pay the final amount by cash or mobile money.",
   },
 ];
 

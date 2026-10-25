@@ -14,6 +14,7 @@ from .views import (
     admin_update_zone,
     admin_update_zone_coordinates,
     nearby_parking,
+    public_parking_locations,
     sensor_event,
 )
 
@@ -27,6 +28,7 @@ router.register("parking-sessions", ParkingSessionViewSet, basename="parking-ses
 urlpatterns = [
     path("sensor-events/", sensor_event, name="sensor-event"),
     path("parking/nearby/", nearby_parking, name="nearby-parking"),
+    path("parking/locations/", public_parking_locations, name="public-parking-locations"),
     path("admin/dashboard/", admin_dashboard, name="admin-dashboard"),
     path("admin/zones/", admin_create_zone, name="admin-create-zone"),
     path("admin/zones/<uuid:pk>/", admin_update_zone, name="admin-update-zone"),

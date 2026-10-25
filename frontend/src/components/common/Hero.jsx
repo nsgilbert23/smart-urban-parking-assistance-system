@@ -20,11 +20,11 @@ export default function Hero() {
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
             <Link to="/register" className="inline-flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800">Create your account <span aria-hidden="true">→</span></Link>
-            <a href="#features" className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Explore the platform</a>
+            <a href="#locations" className="inline-flex items-center justify-center rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50">Browse locations and rates</a>
           </div>
 
           <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 border-t border-slate-200 pt-6 text-sm text-slate-600">
-            <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" />Sensor-informed availability</span>
+            <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" />Operator-updated availability</span>
             <span className="inline-flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-teal-600" />Clear session tracking</span>
           </div>
         </div>
@@ -46,8 +46,8 @@ export default function Hero() {
               {[
                 ["01", "Choose a zone", "Review parking options"],
                 ["02", "Reserve a space", "Confirm your selection"],
-                ["03", "Arrive and park", "Sensor starts your session"],
-                ["04", "Leave with ease", "Session closes on departure"],
+                ["03", "Arrive and park", "Operator checks you in"],
+                ["04", "Leave with ease", "Operator confirms your exit"],
               ].map(([number, title, detail]) => (
                 <div key={number} className="min-h-32 rounded-2xl border border-white/10 bg-white/[0.06] p-4 sm:p-5">
                   <p className="text-xs font-bold tracking-[0.12em] text-teal-300">{number}</p>

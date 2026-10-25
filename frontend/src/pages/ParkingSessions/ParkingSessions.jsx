@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getParkingSessions } from "../../services/parkingService";
+import { getParkingSessions, getSessionPaymentStatus } from "../../services/parkingService";
 
 export default function ParkingSessions() {
   const [sessions, setSessions] = useState([]);
@@ -9,6 +9,13 @@ export default function ParkingSessions() {
 
   useEffect(() => {
     loadSessions();
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      getParkingSessions().then(setSessions).catch(() => {});
+    }, 15000);
+    return () => window.clearInterval(timer);
   }, []);
 
   async function loadSessions() {
@@ -36,6 +43,21 @@ export default function ParkingSessions() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const pending = sessions.filter((session) => session.latest_mobile_money_status?.status === "PENDING");
+    if (!pending.length) return undefined;
+    const timer = window.setInterval(async () => {
+      const results = await Promise.all(pending.map(async (session) => [session.id, await getSessionPaymentStatus(session.id).catch(() => null)]));
+      const updates = new Map(results);
+      setSessions((current) => current.map((session) => {
+        const update = updates.get(session.id);
+        if (!update || session.latest_mobile_money_status?.provider !== update.provider) return session;
+        return { ...session, payment_status: update.payment_status, latest_mobile_money_status: { ...session.latest_mobile_money_status, status: update.status, message: update.message } };
+      }));
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, [sessions]);
+
   function formatDate(date) {
     if (!date) return "Not recorded";
 
@@ -48,6 +70,13 @@ export default function ParkingSessions() {
     }
 
     return Number(cost).toFixed(2);
+  }
+
+  function formatDuration(minutes) {
+    const safeMinutes = Math.max(0, minutes);
+    const hours = Math.floor(safeMinutes / 60);
+    const remainingMinutes = safeMinutes % 60;
+    return hours ? `${hours}h ${remainingMinutes}m` : `${remainingMinutes}m`;
   }
 
   if (loading) {
@@ -104,7 +133,34 @@ export default function ParkingSessions() {
 
         {/* Sessions */}
         {sessions.length > 0 && (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <>
+          <div className="surface-card overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1050px] divide-y divide-slate-200 text-left">
+                <caption className="sr-only">Your parking sessions, time estimates, charges, and payment status</caption>
+                <thead className="bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-600"><tr>{["Status", "Vehicle", "Zone / space", "Planned stay", "Time used / remaining", "Parking fee", "Payment"].map((heading) => <th key={heading} scope="col" className="px-4 py-3">{heading}</th>)}</tr></thead>
+                <tbody className="divide-y divide-slate-100 bg-white text-sm text-slate-700">
+                  {sessions.map((session) => {
+                    const active = session.status === "ACTIVE";
+                    const elapsed = active ? Math.max(0, Math.ceil((now - new Date(session.start_time).getTime()) / 60000)) : session.duration_minutes;
+                    const remaining = active && session.estimated_duration_minutes != null ? session.estimated_duration_minutes - elapsed : null;
+                    const fee = active ? Math.max(0, elapsed - (session.grace_period_minutes || 0)) * Number(session.cost_per_hour || 0) / 60 : session.total_cost;
+                    const payment = session.payment_status === "PAID" ? `Paid by ${session.payment_method === "MTN_MOMO" ? "MTN MoMo" : session.payment_method === "AIRTEL_MONEY" ? "Airtel Money" : session.payment_method === "MOBILE_MONEY" ? "mobile money" : "cash"}` : session.latest_mobile_money_status?.status === "PENDING" ? "Prompt sent · approve on your phone" : session.latest_mobile_money_status?.status === "FAILED" || session.payment_status === "FAILED" ? "Payment failed · contact operator" : active ? "Paid when operator confirms exit" : "Pending operator follow-up";
+                    return <tr key={session.id} className="hover:bg-slate-50/70">
+                      <td className="px-4 py-4"><span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${active ? "bg-green-100 text-green-800" : session.status === "COMPLETED" ? "bg-blue-100 text-blue-800" : session.status === "EXPIRED" ? "bg-amber-100 text-amber-900" : "bg-red-100 text-red-800"}`}>{session.status}</span></td>
+                      <td className="px-4 py-4"><p className="font-semibold text-slate-900">{session.vehicle_plate_number || "Unknown vehicle"}</p><p className="mt-1 text-xs text-slate-500">Started {formatDate(session.start_time)}</p></td>
+                      <td className="px-4 py-4">{session.zone_name || "Unknown zone"}<p className="mt-1 text-xs text-slate-500">Space {session.slot_number || "Unknown"}{active ? ` · ${session.slot_status || "OCCUPIED"}` : ""}</p></td>
+                      <td className="px-4 py-4">{session.estimated_duration_minutes == null ? "Not set" : formatDuration(session.estimated_duration_minutes)}<p className="mt-1 text-xs text-slate-500">{session.pricing_rule_name || "Default pricing"}</p></td>
+                      <td className="px-4 py-4">{active ? <><p className="font-semibold text-slate-900">{formatDuration(elapsed)} used</p>{remaining == null ? <p className="mt-1 text-xs text-slate-500">No estimate set</p> : <p className={`mt-1 text-xs font-semibold ${remaining < 0 ? "text-amber-800" : "text-teal-800"}`}>{remaining < 0 ? `${formatDuration(Math.abs(remaining))} past estimate` : `${formatDuration(remaining)} remaining`}</p>}</> : <><p>{elapsed == null ? "Not recorded" : `${elapsed} minutes used`}</p><p className="mt-1 text-xs text-slate-500">Ended {formatDate(session.end_time)}</p></>}</td>
+                      <td className="px-4 py-4 font-bold text-slate-900">{fee == null ? "Not recorded" : `${formatCost(fee)} RWF${active ? " est." : ""}`}</td>
+                      <td className="max-w-xs px-4 py-4"><p className="font-medium">{payment}</p>{session.latest_mobile_money_status?.message && <p className="mt-1 text-xs text-slate-500">{session.latest_mobile_money_status.message}</p>}</td>
+                    </tr>;
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="hidden">
             {sessions.map((session) => (
               <article
                 key={session.id}
@@ -154,10 +210,23 @@ export default function ParkingSessions() {
                     </p>
                   </div>
 
+                  {session.estimated_duration_minutes != null && (
+                    <div>
+                      <p className="text-sm text-gray-500">Planned parking time</p>
+                      <p className="font-semibold">{formatDuration(session.estimated_duration_minutes)}</p>
+                    </div>
+                  )}
+
                   <div>
                     <p className="text-sm text-gray-500">Parking Zone</p>
                     <p className="font-semibold">{session.zone_name || "Unknown zone"}</p>
                   </div>
+
+                  {session.status === "ACTIVE" && session.estimated_duration_minutes != null && (() => {
+                    const elapsed = Math.max(0, Math.ceil((now - new Date(session.start_time).getTime()) / 60000));
+                    const remaining = session.estimated_duration_minutes - elapsed;
+                    return <div className={`rounded-lg p-3 ${remaining < 0 ? "bg-amber-50" : "bg-teal-50"}`}><p className="text-sm text-gray-600">Time used · {formatDuration(elapsed)}</p><p className={`text-lg font-bold ${remaining < 0 ? "text-amber-800" : "text-teal-800"}`}>{remaining < 0 ? `Past estimate by ${formatDuration(Math.abs(remaining))}` : `${formatDuration(remaining)} remaining`}</p></div>;
+                  })()}
 
                   {session.status === "ACTIVE" && (
                     <div>
@@ -226,14 +295,23 @@ export default function ParkingSessions() {
 
                   {session.status === "ACTIVE" && (
                     <p className="border-t pt-4 text-sm text-blue-700">
-                      Parking ends automatically when the parking sensor detects that the vehicle has left.
+                      The operator confirms your departure and records the final payment.
                     </p>
+                  )}
+
+                  {session.status === "COMPLETED" && (
+                    <div className="border-t pt-4">
+                      <p className="text-sm text-gray-500">Payment</p>
+                      <p className="font-semibold">{session.payment_status === "PAID" ? `Paid by ${session.payment_method === "MTN_MOMO" ? "MTN MoMo" : session.payment_method === "AIRTEL_MONEY" ? "Airtel Money" : session.payment_method === "MOBILE_MONEY" ? "mobile money" : "cash"}` : session.latest_mobile_money_status?.status === "PENDING" ? "Payment prompt sent. Approve it on your phone." : session.latest_mobile_money_status?.status === "FAILED" || session.payment_status === "FAILED" ? "Payment failed. Please contact the parking operator." : "Pending operator follow-up"}</p>
+                      {session.latest_mobile_money_status?.message && <p className="mt-1 text-sm text-gray-600">{session.latest_mobile_money_status.message}</p>}
+                    </div>
                   )}
 
                 </div>
               </article>
             ))}
           </div>
+          </>
         )}
       </div>
     </div>

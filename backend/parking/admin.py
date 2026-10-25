@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import ParkingSensor, ParkingSession, ParkingSlot, ParkingZone, PricingRule
+from .models import MobileMoneyPayment, ParkingSensor, ParkingSession, ParkingSlot, ParkingZone, PricingRule
 
 
 class ParkingSlotInline(admin.TabularInline):
@@ -14,14 +14,16 @@ class ParkingZoneAdmin(admin.ModelAdmin):
     list_display = (
         "name",
         "location",
+        "operator",
         "total_slots",
         "is_active",
         "created_at",
     )
-    list_filter = ("is_active", "created_at")
+    list_filter = ("is_active", "operator", "created_at")
     search_fields = ("name", "location", "description")
     readonly_fields = ("id", "created_at", "updated_at")
     inlines = (ParkingSlotInline,)
+    autocomplete_fields = ("operator",)
 
 
 @admin.register(ParkingSlot)
@@ -65,7 +67,10 @@ class ParkingSessionAdmin(admin.ModelAdmin):
         "start_time",
         "end_time",
         "duration_minutes",
+        "estimated_duration_minutes",
         "total_cost",
+        "payment_status",
+        "payment_method",
     )
     list_filter = ("status", "pricing_rule", "created_at")
     search_fields = (
@@ -93,4 +98,18 @@ class ParkingSensorAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         # Credentials are generated and printed once by the provisioning command.
+        return False
+
+
+@admin.register(MobileMoneyPayment)
+class MobileMoneyPaymentAdmin(admin.ModelAdmin):
+    list_display = ("provider", "session", "amount", "currency", "status", "created_at")
+    list_filter = ("provider", "status", "created_at")
+    search_fields = ("provider_reference", "session__vehicle__plate_number", "session__slot__slot_number")
+    readonly_fields = tuple(field.name for field in MobileMoneyPayment._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
         return False

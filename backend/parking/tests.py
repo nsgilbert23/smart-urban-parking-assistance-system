@@ -10,6 +10,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 from vehicles.models import Vehicle
+from notifications.models import Notification
 
 from .models import ParkingSensor, ParkingSession, ParkingSlot, ParkingZone, PricingRule
 from .reservations import expire_reservations
@@ -157,6 +158,19 @@ class ParkingAPITests(TestCase):
             color="Blue",
         )
 
+    def authenticate_admin(self):
+        admin = get_user_model().objects.create_user(
+            email="parking-admin@example.com",
+            first_name="Parking",
+            last_name="Admin",
+            password="StrongPass123",
+            role="ADMIN",
+            is_staff=True,
+            is_superuser=True,
+        )
+        self.client.force_authenticate(user=admin)
+        return admin
+
     def create_history_session(
         self, *, status_value, start_time, plate_suffix, end_time=None
     ):
@@ -302,6 +316,7 @@ class ParkingAPITests(TestCase):
         self.assertIsNone(item["total_cost"])
 
     def test_create_parking_zone(self):
+        self.authenticate_admin()
         response = self.client.post(
             "/api/parking-zones/",
             {
@@ -318,6 +333,7 @@ class ParkingAPITests(TestCase):
         self.assertEqual(ParkingZone.objects.count(), 1)
 
     def test_create_parking_slot(self):
+        self.authenticate_admin()
         zone = ParkingZone.objects.create(
             name="Downtown",
             location="Main Street",
@@ -340,6 +356,7 @@ class ParkingAPITests(TestCase):
         self.assertEqual(ParkingSlot.objects.count(), 1)
 
     def test_create_pricing_rule(self):
+        self.authenticate_admin()
         response = self.client.post(
             "/api/pricing-rules/",
             {
@@ -375,6 +392,7 @@ class ParkingAPITests(TestCase):
                 "slot": str(slot.id),
                 "pricing_rule": str(pricing_rule.id),
                 "status": ParkingSession.SessionStatus.ACTIVE,
+                "estimated_duration_minutes": 120,
             },
             format="json",
         )
@@ -384,6 +402,10 @@ class ParkingAPITests(TestCase):
         slot.refresh_from_db()
         self.assertEqual(slot.status, ParkingSlot.SlotStatus.RESERVED)
         self.assertEqual(slot.reserved_vehicle, self.vehicle)
+        self.assertEqual(slot.reserved_estimated_duration_minutes, 120)
+        self.assertTrue(Notification.objects.filter(
+            user=self.user, title="Parking reservation confirmed",
+        ).exists())
         self.assertIsNotNone(slot.reserved_at)
         self.assertEqual(slot.reservation_expires_at - slot.reserved_at, timedelta(minutes=15))
 
@@ -395,6 +417,7 @@ class ParkingAPITests(TestCase):
         response = self.client.post("/api/parking-sessions/", {
             "vehicle": str(self.vehicle.id), "slot": str(slot.id),
             "pricing_rule": str(rule.id),
+            "estimated_duration_minutes": 90,
         }, format="json")
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         slot.refresh_from_db()
@@ -402,6 +425,104 @@ class ParkingAPITests(TestCase):
         self.assertEqual(slot.reservation_expires_at - slot.reserved_at, timedelta(minutes=23))
         self.assertIsNotNone(response.data["reserved_at"])
         self.assertEqual(response.data["reservation_expires_at"], slot.reservation_expires_at)
+
+    def test_driver_cannot_see_another_drivers_reservation_details(self):
+        other = get_user_model().objects.create_user(
+            email="private-driver@example.com", password="StrongPass123"
+        )
+        other_vehicle = Vehicle.objects.create(
+            owner=other,
+            plate_number="PRIVATE-PLATE",
+            brand="Honda",
+            model="Civic",
+            color="Black",
+        )
+        zone = ParkingZone.objects.create(name="Privacy Zone", location="Main Street")
+        rule = PricingRule.objects.create(name="Privacy Rate", cost_per_hour="5.00")
+        slot = ParkingSlot.objects.create(
+            zone=zone, slot_number="P1", sensor_id="private-sensor",
+            status=ParkingSlot.SlotStatus.RESERVED, reserved_vehicle=other_vehicle,
+            reserved_pricing_rule=rule, reserved_estimated_duration_minutes=60,
+            reserved_at=timezone.now(), reservation_expires_at=timezone.now() + timedelta(minutes=15),
+        )
+
+        response = self.client.get("/api/parking-slots/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        serialized = next(item for item in response.data if item["id"] == str(slot.id))
+        self.assertIsNone(serialized["reserved_vehicle"])
+        self.assertIsNone(serialized["reserved_vehicle_plate_number"])
+        self.assertIsNone(serialized["reserved_pricing_rule"])
+        self.assertIsNone(serialized["reservation_expires_at"])
+        self.assertIsNone(serialized["sensor_id"])
+
+    def test_driver_can_see_their_own_reservation_details(self):
+        zone = ParkingZone.objects.create(name="Own Reservation Zone", location="Main Street")
+        rule = PricingRule.objects.create(name="Own Reservation Rate", cost_per_hour="5.00")
+        slot = ParkingSlot.objects.create(
+            zone=zone, slot_number="O1", status=ParkingSlot.SlotStatus.RESERVED,
+            reserved_vehicle=self.vehicle, reserved_pricing_rule=rule,
+            reserved_estimated_duration_minutes=60, reserved_at=timezone.now(),
+            reservation_expires_at=timezone.now() + timedelta(minutes=15),
+        )
+
+        response = self.client.get("/api/parking-slots/")
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        serialized = next(item for item in response.data if item["id"] == str(slot.id))
+        self.assertTrue(serialized["reservation_owned_by_current_user"])
+        self.assertEqual(serialized["reserved_vehicle_plate_number"], self.vehicle.plate_number)
+        self.assertIsNotNone(serialized["reservation_expires_at"])
+
+    def test_operator_cannot_check_in_an_expired_reservation(self):
+        operator = get_user_model().objects.create_user(
+            email="assigned-operator@example.com", password="StrongPass123", role="OPERATOR"
+        )
+        zone = ParkingZone.objects.create(
+            name="Expired Arrival Zone", location="Main Street", operator=operator,
+        )
+        rule = PricingRule.objects.create(name="Expired Arrival Rate", cost_per_hour="5.00")
+        expired_at = timezone.now() - timedelta(seconds=1)
+        slot = ParkingSlot.objects.create(
+            zone=zone, slot_number="X1", status=ParkingSlot.SlotStatus.RESERVED,
+            reserved_vehicle=self.vehicle, reserved_pricing_rule=rule,
+            reserved_at=expired_at - timedelta(minutes=15), reservation_expires_at=expired_at,
+        )
+        self.client.force_authenticate(user=operator)
+
+        response = self.client.post(f"/api/parking-sessions/{slot.id}/operator-arrival/")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        slot.refresh_from_db()
+        self.assertEqual(slot.status, ParkingSlot.SlotStatus.AVAILABLE)
+        self.assertIsNone(slot.reserved_vehicle_id)
+        self.assertFalse(ParkingSession.objects.filter(slot=slot, status=ParkingSession.SessionStatus.ACTIVE).exists())
+        self.assertTrue(Notification.objects.filter(
+            user=self.user, title="Your parking reservation expired",
+        ).exists())
+
+    def test_operator_check_in_creates_a_driver_notification(self):
+        operator = get_user_model().objects.create_user(
+            email="checkin-operator@example.com", password="StrongPass123", role="OPERATOR"
+        )
+        zone = ParkingZone.objects.create(
+            name="Check-in Zone", location="Main Street", operator=operator,
+        )
+        rule = PricingRule.objects.create(name="Check-in Rate", cost_per_hour="5.00")
+        slot = ParkingSlot.objects.create(
+            zone=zone, slot_number="C1", status=ParkingSlot.SlotStatus.RESERVED,
+            reserved_vehicle=self.vehicle, reserved_pricing_rule=rule,
+            reserved_estimated_duration_minutes=60, reserved_at=timezone.now(),
+            reservation_expires_at=timezone.now() + timedelta(minutes=15),
+        )
+        self.client.force_authenticate(user=operator)
+
+        response = self.client.post(f"/api/parking-sessions/{slot.id}/operator-arrival/")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Notification.objects.filter(
+            user=self.user, title="Your parking session has started",
+        ).exists())
 
     def test_expiration_releases_only_expired_reserved_slots_and_is_idempotent(self):
         zone = ParkingZone.objects.create(name="Cleanup Zone", location="Main Street")

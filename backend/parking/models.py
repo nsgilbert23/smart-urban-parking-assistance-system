@@ -12,6 +12,10 @@ from vehicles.models import Vehicle
 
 class ParkingZone(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    operator = models.ForeignKey(
+        "accounts.User", on_delete=models.SET_NULL, blank=True, null=True,
+        related_name="managed_parking_zones", limit_choices_to={"role": "OPERATOR"},
+    )
     name = models.CharField(max_length=100, unique=True)
     location = models.CharField(max_length=255)
     description = models.TextField(blank=True)
@@ -82,6 +86,7 @@ class ParkingSlot(models.Model):
         "PricingRule", on_delete=models.SET_NULL, blank=True, null=True,
         related_name="parking_reservations",
     )
+    reserved_estimated_duration_minutes = models.PositiveIntegerField(blank=True, null=True)
     reserved_at = models.DateTimeField(blank=True, null=True)
     reservation_expires_at = models.DateTimeField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
@@ -178,6 +183,13 @@ class ParkingSession(models.Model):
         EXPIRED = "EXPIRED", "Expired"
         CANCELLED = "CANCELLED", "Cancelled"
 
+    class PaymentMethod(models.TextChoices):
+        CASH = "CASH", "Cash"
+        MOBILE_MONEY = "MOBILE_MONEY", "Mobile money (recorded)"
+        MTN_MOMO = "MTN_MOMO", "MTN MoMo"
+        AIRTEL_MONEY = "AIRTEL_MONEY", "Airtel Money"
+        PENDING = "PENDING", "Payment pending"
+
     id = models.UUIDField(
         primary_key=True,
         default=uuid.uuid4,
@@ -223,6 +235,11 @@ class ParkingSession(models.Model):
             MinValueValidator(Decimal("0.00"))
         ],
     )
+
+    payment_status = models.CharField(max_length=10, default="UNPAID")
+    payment_method = models.CharField(max_length=20, choices=PaymentMethod.choices, blank=True)
+    estimated_duration_minutes = models.PositiveIntegerField(blank=True, null=True)
+    payment_phone_number = models.CharField(max_length=20, blank=True)
 
     status = models.CharField(
         max_length=20,
@@ -312,3 +329,29 @@ class ParkingSession(models.Model):
 
     def __str__(self):
         return f"{self.vehicle} at {self.slot} ({self.status})"
+
+
+class MobileMoneyPayment(models.Model):
+    class Provider(models.TextChoices):
+        MTN = "MTN", "MTN MoMo"
+        AIRTEL = "AIRTEL", "Airtel Money"
+
+    class PaymentStatus(models.TextChoices):
+        PENDING = "PENDING", "Pending"
+        SUCCESSFUL = "SUCCESSFUL", "Successful"
+        FAILED = "FAILED", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(ParkingSession, on_delete=models.PROTECT, related_name="mobile_money_payments")
+    provider = models.CharField(max_length=10, choices=Provider.choices)
+    provider_reference = models.CharField(max_length=100, unique=True)
+    phone_number = models.CharField(max_length=20)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=3, default="RWF")
+    status = models.CharField(max_length=12, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
+    provider_message = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
